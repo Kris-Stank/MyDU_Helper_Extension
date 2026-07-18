@@ -4,7 +4,7 @@
   const DRAFT_TTL = 3 * 60 * 1000;
   const POSITION_KEY = "mydu-helper-position";
   const ASSETS = {
-    brand: chrome.runtime.getURL("src/assets/aitu-welcome-reference.png"),
+    brand: chrome.runtime.getURL("src/assets/aitu-logo.png"),
     question: chrome.runtime.getURL("src/assets/mascot-question.png"),
     smile: chrome.runtime.getURL("src/assets/mascot-smile.png"),
     peek: chrome.runtime.getURL("src/assets/mascot-peek.png")
@@ -313,12 +313,22 @@
   function appendTemplate(id) {
     const template = selectedTemplate(id);
     if (!template) return false;
+    if (state.selected.some(item => item.templateId === id)) return true;
     state.selected.push({ id: `${id}-${Date.now()}-${Math.random()}`, templateId: id, title: template.title, text: template.text });
     return true;
   }
 
   function addTemplate(id) {
     if (!appendTemplate(id)) return;
+    render(); scheduleSave();
+  }
+
+  function toggleTemplate(id) {
+    if (state.selected.some(item => item.templateId === id)) {
+      state.selected = state.selected.filter(item => item.templateId !== id);
+    } else {
+      appendTemplate(id);
+    }
     render(); scheduleSave();
   }
 
@@ -336,7 +346,7 @@
     state.selected.push({ id: `custom-${Date.now()}-${Math.random()}`, templateId: null, title: "Свой пункт", text });
     state.custom = "";
     render();
-    requestAnimationFrame(() => shadow.querySelector("#mdh-custom")?.focus());
+    requestAnimationFrame(() => shadow?.querySelector("#mdh-custom")?.focus());
     scheduleSave();
   }
 
@@ -394,13 +404,16 @@
       await navigator.clipboard.writeText(text);
     } catch {
       const area = shadow.querySelector("#mdh-result");
+      if (!area) return toast("Не удалось скопировать комментарий. Откройте раздел «Комментарий» и попробуйте снова.");
       area.focus(); area.select(); document.execCommand("copy");
     }
     toast("Комментарий скопирован. Вставьте его в «Основание» вручную.");
   }
 
   function toast(message) {
+    if (!shadow) return;
     const element = shadow.querySelector("#mdh-toast");
+    if (!element) return;
     element.textContent = message;
     element.classList.add("show");
     setTimeout(() => element.classList.remove("show"), 2200);
@@ -708,15 +721,15 @@
     .mdh-panel{position:fixed;right:18px;bottom:18px;z-index:2147483647;width:min(468px,calc(100vw - 24px));height:min(900px,calc(100vh - 28px));background:#fff;color:#062653;border:1px solid #0626531f;border-radius:28px;box-shadow:0 28px 80px #0626533b,0 4px 16px #06265314;font:14px Inter,"Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;pointer-events:auto}
     .mdh-panel.hidden{display:none}
     .mdh-drag-bar{position:absolute;top:9px;left:50%;z-index:3;width:40px;height:5px;margin-left:-20px;border-radius:99px;background:#cbd7e5;pointer-events:none}
-    .mdh-header{height:88px;flex:none;padding:20px 18px 13px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #edf1f5;cursor:grab;touch-action:none;user-select:none;background:#fff}
+    .mdh-header{height:96px;flex:none;padding:21px 18px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #edf1f5;cursor:grab;touch-action:none;user-select:none;background:#fff}
     .mdh-header.dragging{cursor:grabbing}
-    .mdh-brand-symbol{position:relative;flex:none;width:46px;height:46px;overflow:hidden;border-radius:14px;background:#eef6ff}
-    .mdh-brand-symbol img{position:absolute;width:400px;max-width:none;height:auto;transform:translate(-135px,-31px);pointer-events:none}
+    .mdh-brand-symbol{display:grid;place-items:center;flex:none;width:56px;height:56px;background:transparent}
+    .mdh-brand-symbol img{display:block;width:52px;height:52px;object-fit:contain;pointer-events:none}
     .mdh-head-copy{flex:1;min-width:0}
     .mdh-head-copy b{display:block;font-size:18px;line-height:1.1;letter-spacing:-.25px}
     .mdh-head-copy span{display:block;margin-top:5px;color:#7d8ba0;font-size:10px;font-weight:650;letter-spacing:.15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .mdh-local{display:flex;align-items:center;gap:5px;padding:6px 9px;border-radius:99px;background:#eafaf4;color:#3b846f;font-size:9px;font-weight:800}
-    .mdh-local:before{content:"";width:6px;height:6px;border-radius:50%;background:#16bb91}
+    .mdh-local{display:flex;align-items:center;gap:6px;padding:8px 11px;border-radius:99px;background:#eafaf4;color:#3b846f;font-size:11px;font-weight:800}
+    .mdh-local:before{content:"";width:7px;height:7px;border-radius:50%;background:#16bb91}
     .mdh-close{width:35px;height:35px;flex:none;border:0;border-radius:12px;background:#f1f5f9;color:#6e7e92;font-size:21px;line-height:1;cursor:pointer}
     .mdh-nav{margin:14px 18px 0;padding:5px;flex:none;display:grid;grid-template-columns:1fr 1fr 1.08fr;gap:4px;border-radius:17px;background:#f1f5f9}
     .mdh-nav button{height:48px;border:0;border-radius:13px;background:transparent;color:#748399;font-size:10px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
@@ -732,8 +745,8 @@
     .mdh-eyebrow{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.05px;opacity:.82}
     .mdh-result-hero h1{max-width:245px;margin:9px 0 16px;font-size:23px;line-height:1.08;letter-spacing:-.65px}
     .mdh-hero-action{height:35px;padding:0 13px;border:0;border-radius:11px;background:#fff;color:#0868d4;font-size:10px;font-weight:850;cursor:pointer;box-shadow:0 4px 10px #002d5e1a}
-    .mdh-mascot-orbit{position:absolute;right:14px;bottom:-6px;z-index:2;width:132px;height:132px;border-radius:50%;overflow:hidden;background:#fff;box-shadow:0 0 0 8px #ffffff24}
-    .mdh-mascot-orbit img{position:absolute;width:145px;max-width:none;left:-6px;top:-9px}
+    .mdh-mascot-orbit{position:absolute;right:5px;bottom:-13px;z-index:2;width:158px;height:172px;overflow:visible;background:transparent;box-shadow:none;pointer-events:none}
+    .mdh-mascot-orbit img{position:absolute;width:150px;max-width:none;height:auto;left:5px;top:8px;filter:drop-shadow(0 9px 12px #00356b33)}
     .mdh-spark{position:absolute;right:143px;top:20px;z-index:3;width:13px;height:13px;border-radius:3px;background:#ff9418;transform:rotate(45deg)}
     .mdh-section-title{display:flex;align-items:flex-end;justify-content:space-between;margin:24px 2px 11px}
     .mdh-section-title h2{margin:0;font-size:18px;letter-spacing:-.35px}
@@ -756,16 +769,20 @@
     .mdh-view-head h1{margin:7px 0 6px;font-size:24px;line-height:1.08;letter-spacing:-.65px}
     .mdh-view-head p{margin:0;color:#73849a;font-size:11px;line-height:1.45}
     .mdh-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:12px;padding:5px;border-radius:17px;background:#f1f5f9}
-    .mdh-tab{min-height:45px;padding:6px 5px;border:0;border-radius:13px;background:transparent;color:#748399;font-size:9px;font-weight:800;line-height:1.15;cursor:pointer}
+    .mdh-tab{min-height:54px;padding:8px 7px;border:0;border-radius:13px;background:transparent;color:#65768c;font-size:11px;font-weight:800;line-height:1.18;cursor:pointer}
     .mdh-tab.active{background:#fff;color:#0868d4;box-shadow:0 3px 12px #194a7917}
     .mdh-search{width:100%;height:44px;margin-bottom:12px;padding:0 14px;border:1px solid #dce7f2;border-radius:14px;background:#fff;color:#062653;font-size:11px;outline:none}
     .mdh-search:focus{border-color:#1681ef;box-shadow:0 0 0 3px #1681ef17}
-    .mdh-template{position:relative;width:100%;margin-bottom:9px;padding:14px 40px 14px 15px;text-align:left;border:1px solid #dce7f2;border-radius:17px;background:#fff;color:#062653;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
-    .mdh-template:after{content:"+";position:absolute;right:14px;top:50%;display:grid;place-items:center;width:25px;height:25px;margin-top:-12px;border-radius:9px;background:#eaf5ff;color:#1681ef;font-size:17px;font-weight:800}
+    .mdh-template{position:relative;width:100%;margin-bottom:9px;padding:14px 54px 14px 15px;text-align:left;border:1px solid #dce7f2;border-radius:17px;background:#fff;color:#062653;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
+    .mdh-template:after{content:"+";position:absolute;right:14px;top:14px;display:grid;place-items:center;width:27px;height:27px;margin:0;border-radius:9px;background:#eaf5ff;color:#1681ef;font-size:17px;font-weight:800}
     .mdh-template:hover{border-color:#8bc5ff;box-shadow:0 8px 20px #123c6612;transform:translateY(-1px)}
+    .mdh-template.selected{padding-left:52px;border-color:#1681ef;background:#f3f9ff;box-shadow:0 0 0 2px #1681ef12}
+    .mdh-template.selected:after{content:"✓";left:15px;right:auto;top:14px;width:25px;height:25px;margin:0;border-radius:9px;background:#1681ef;color:#fff;font-size:13px}
     .mdh-template span{display:block;margin-bottom:4px;color:#1681ef;font-size:8px;font-weight:850;letter-spacing:.5px;text-transform:uppercase}
     .mdh-template strong{display:block;margin-bottom:5px;font-size:13px;line-height:1.25}
     .mdh-template small{display:-webkit-box;overflow:hidden;color:#6f7f93;font-size:10px;line-height:1.4;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .mdh-template em{display:none;margin-top:8px;color:#1681ef;font-size:9px;font-style:normal;font-weight:850}
+    .mdh-template.selected em{display:block}
     .mdh-section{margin:0 0 13px;border:1px solid #dce7f2;border-radius:19px;overflow:hidden;background:#fff}
     .mdh-section>h3{margin:0;padding:13px 15px;background:#f5f9fd;font-size:13px}
     .mdh-inner{padding:14px}
@@ -789,7 +806,7 @@
     .mdh-preview-label{display:block;margin:18px 2px 8px;font-size:12px}
     .mdh-result{min-height:135px;background:#f8fafc;color:#52667f}
     .mdh-empty-state{padding:26px 18px;text-align:center;border:1px dashed #cddcea;border-radius:20px;background:#f9fbfd}
-    .mdh-empty-state img{width:96px;height:96px;object-fit:cover;object-position:top;border-radius:50%;background:#fff}
+    .mdh-empty-state img{width:112px;height:auto;object-fit:contain;filter:drop-shadow(0 8px 10px #06265324)}
     .mdh-empty-state b{display:block;margin-top:8px;font-size:15px}.mdh-empty-state p{margin:6px 0 0;color:#73849a;font-size:10px;line-height:1.4}
     .mdh-empty{margin:0;color:#73849a;font-size:11px;line-height:1.4}
     .mdh-reference-section{position:relative!important;top:auto!important;z-index:1!important;margin:14px 0 0!important;border:1px solid #b9dcff!important;border-radius:19px!important;box-shadow:none!important;background:#fff!important}
@@ -810,7 +827,7 @@
     .mdh-foot-primary:disabled{opacity:.45;cursor:default;box-shadow:none}
     .mdh-toast{position:absolute;left:18px;right:18px;bottom:82px;z-index:50;padding:11px 13px;border-radius:13px;background:#062653;color:#fff;font-size:10px;opacity:0;pointer-events:none;transform:translateY(8px);transition:.2s;box-shadow:0 12px 30px #06265333}
     .mdh-toast.show{opacity:1;transform:translateY(0)}
-    @media(max-width:560px){.mdh-panel{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 16px);border-radius:23px}.mdh-local{display:none}.mdh-result-hero{padding-right:122px}.mdh-mascot-orbit{width:112px;height:112px}.mdh-mascot-orbit img{width:125px}.mdh-nav{margin-left:12px;margin-right:12px}.mdh-body{padding-left:12px;padding-right:12px}.mdh-foot{padding-left:12px;padding-right:12px}}
+    @media(max-width:560px){.mdh-panel{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 16px);border-radius:23px}.mdh-local{display:none}.mdh-result-hero{padding-right:125px}.mdh-mascot-orbit{right:0;width:130px;height:150px}.mdh-mascot-orbit img{width:128px}.mdh-nav{margin-left:12px;margin-right:12px}.mdh-body{padding-left:12px;padding-right:12px}.mdh-foot{padding-left:12px;padding-right:12px}}
   `;
 
   function currentSection() {
@@ -821,7 +838,8 @@
     const query = state.query.trim().toLowerCase();
     if (!currentSection().groups.includes(template.group)) return "";
     if (query && !`${template.group} ${template.title} ${template.text}`.toLowerCase().includes(query)) return "";
-    return `<button type="button" class="mdh-template" data-add="${esc(template.id)}"><span>${esc(template.group)}</span><strong>${esc(template.title)}</strong><small>${esc(template.text)}</small></button>`;
+    const isSelected = state.selected.some(item => item.templateId === template.id);
+    return `<button type="button" class="mdh-template ${isSelected ? "selected" : ""}" data-template="${esc(template.id)}" aria-pressed="${isSelected}"><span>${esc(template.group)}</span><strong>${esc(template.title)}</strong><small>${esc(template.text)}</small><em>${isSelected ? "Выбрано · нажмите, чтобы убрать" : ""}</em></button>`;
   }
 
   function countWord(value, one, few, many) {
@@ -871,11 +889,15 @@
     placeElement(shadow.querySelector(".mdh-launch"), "launch");
     bindEvents();
     requestAnimationFrame(() => {
+      if (!shadow) return;
       const body = shadow.querySelector(".mdh-body");
       if (body) body.scrollTop = scrollTop;
       if (restoreSearch) {
         const search = shadow.querySelector("#mdh-search");
-        search.focus(); search.setSelectionRange(selectionStart, selectionEnd);
+        if (search) {
+          search.focus();
+          search.setSelectionRange(selectionStart, selectionEnd);
+        }
       }
     });
   }
@@ -903,6 +925,7 @@
     if (clearButton) clearButton.onclick = () => { state.selected = []; state.custom = ""; render(); scheduleSave(); };
     shadow.querySelectorAll("[data-section]").forEach(node => node.onclick = () => { state.activeSection = node.dataset.section; state.query = ""; render(); scheduleSave(); });
     shadow.querySelectorAll("[data-add]").forEach(node => node.onclick = () => addTemplate(node.dataset.add));
+    shadow.querySelectorAll("[data-template]").forEach(node => node.onclick = () => toggleTemplate(node.dataset.template));
     shadow.querySelectorAll("[data-warning-add]").forEach(node => node.onclick = () => resolveWarning(Number(node.dataset.warningAdd), true));
     shadow.querySelectorAll("[data-warning-ignore]").forEach(node => node.onclick = () => resolveWarning(Number(node.dataset.warningIgnore), false));
     shadow.querySelectorAll("[data-grade]").forEach(node => node.oninput = event => {
