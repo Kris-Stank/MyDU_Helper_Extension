@@ -3,6 +3,12 @@
 
   const DRAFT_TTL = 3 * 60 * 1000;
   const POSITION_KEY = "mydu-helper-position";
+  const ASSETS = {
+    brand: chrome.runtime.getURL("src/assets/aitu-welcome-reference.png"),
+    question: chrome.runtime.getURL("src/assets/mascot-question.png"),
+    smile: chrome.runtime.getURL("src/assets/mascot-smile.png"),
+    peek: chrome.runtime.getURL("src/assets/mascot-peek.png")
+  };
   const LEGACY_TEMPLATES = [
     { id: "photo-invalid", group: "Персональные сведения", title: "Фото недействительное", text: "Фото недействительное. Пожалуйста, загрузите фото 3×4 в корректном формате: лицо должно быть хорошо видно, фон нейтральный, фото без посторонних предметов и без сильной обработки." },
     { id: "kato-not-city", group: "Персональные сведения", title: "Населённый пункт указан не городом", text: "В поле населённого пункта укажите город в корректном формате. Пожалуйста, выберите населённый пункт, соответствующий адресу прописки/проживания." },
@@ -103,6 +109,7 @@
   let lastAttachmentHint = "";
   let referenceCollapsed = false;
   let uiPosition = { panel: null, launch: null };
+  let renderedView = null;
 
   function applicantId() {
     const match = location.pathname.match(/\/admission\/applicants\/(\d+)/);
@@ -118,7 +125,7 @@
   }
 
   function freshState() {
-    return { selected: [], custom: "", query: "", activeSection: "personal", collapsed: false, warnings: [], checksRun: false, gradeCounts: { 5: "", 4: "", 3: "", 2: "" } };
+    return { selected: [], custom: "", query: "", activeSection: "personal", activeView: "checks", collapsed: false, warnings: [], checksRun: false, gradeCounts: { 5: "", 4: "", 3: "", 2: "" } };
   }
 
   function validPosition(value) {
@@ -691,6 +698,121 @@
     return `<style>.mdh-reference-section{position:sticky;top:-12px;z-index:20;border-color:#9cc7ff;box-shadow:0 8px 24px #173d6626;background:#fff}.mdh-reference-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;background:#eaf4ff}.mdh-reference-head div{min-width:0}.mdh-reference-head h3{padding:0;background:none;font-size:13px}.mdh-reference-head small{display:block;margin-top:2px;color:#476987;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}.mdh-reference-toggle{border:0;border-radius:7px;background:#fff;color:#1557a0;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer}.mdh-reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mdh-reference-value{padding:8px;border:1px solid #d9e6f4;border-radius:8px;background:#f8fbff;min-width:0;user-select:text}.mdh-reference-value.wide{grid-column:1/-1}.mdh-reference-value small{display:block;color:#668099;font-size:9px;margin-bottom:3px}.mdh-reference-value strong{display:block;color:#102a43;font-size:12px;line-height:1.25;overflow-wrap:anywhere}.mdh-reference-value.empty strong{color:#a13b3b}.mdh-reference-note{margin:8px 0 0;padding:7px;border-radius:7px;background:#fff7df;color:#6c5309;font-size:10px;line-height:1.35}.mdh-readable{margin-top:8px;border-top:1px solid #dfe8f2;padding-top:8px}.mdh-readable>span{display:block;color:#167044;font-size:10px;font-weight:700;margin-bottom:5px}.mdh-doc-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:5px;padding:6px;border-bottom:1px solid #e6ebf1}.mdh-doc-row>span{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-weight:800}.mdh-doc-row b{font-size:11px}.mdh-doc-row small{font-size:9px}.mdh-doc-row.match>span{background:#dff5e7;color:#167044}.mdh-doc-row.match small{color:#167044}.mdh-doc-row.mismatch>span{background:#ffe4e4;color:#a22121}.mdh-doc-row.mismatch small{color:#a22121}.mdh-doc-row.unknown>span,.mdh-doc-row.manual>span{background:#edf3fa;color:#536b84}.mdh-readable-grades{display:grid;gap:4px;padding:8px;border-radius:8px;background:#f3f8ff;color:#173d66;font-size:10px}.mdh-readable-grades strong{font-size:16px}.mdh-readable-grades small{line-height:1.35;color:#536b84}</style><section class="mdh-section mdh-reference-section"><div class="mdh-reference-head"><div><h3>Данные MyDU · ${esc(documentReview.type)}</h3><small title="${esc(documentReview.filename)}">${esc(documentReview.filename)}</small></div><button type="button" class="mdh-reference-toggle" id="mdh-reference-toggle">${referenceCollapsed ? "Развернуть" : "Свернуть"}</button></div>${referenceCollapsed ? "" : `<div class="mdh-inner"><div class="mdh-reference-grid">${references}</div>${readable}</div>`}</section>`;
   }
 
+  const PANEL_CSS = `
+    :host{all:initial}
+    *{box-sizing:border-box}
+    button,input,textarea{font:inherit}
+    .mdh-launch{position:fixed;right:20px;bottom:22px;z-index:2147483646;width:62px;height:62px;padding:0;border:4px solid #fff;border-radius:20px;background:#1681ef;box-shadow:0 15px 35px #064a9147;cursor:grab;touch-action:none;user-select:none;overflow:hidden}
+    .mdh-launch img{position:absolute;width:78px;max-width:none;left:-8px;top:7px;pointer-events:none}
+    .mdh-launch.dragging{cursor:grabbing}.mdh-launch.hidden{display:none}
+    .mdh-panel{position:fixed;right:18px;bottom:18px;z-index:2147483647;width:min(468px,calc(100vw - 24px));height:min(900px,calc(100vh - 28px));background:#fff;color:#062653;border:1px solid #0626531f;border-radius:28px;box-shadow:0 28px 80px #0626533b,0 4px 16px #06265314;font:14px Inter,"Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;pointer-events:auto}
+    .mdh-panel.hidden{display:none}
+    .mdh-drag-bar{position:absolute;top:9px;left:50%;z-index:3;width:40px;height:5px;margin-left:-20px;border-radius:99px;background:#cbd7e5;pointer-events:none}
+    .mdh-header{height:88px;flex:none;padding:20px 18px 13px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #edf1f5;cursor:grab;touch-action:none;user-select:none;background:#fff}
+    .mdh-header.dragging{cursor:grabbing}
+    .mdh-brand-symbol{position:relative;flex:none;width:46px;height:46px;overflow:hidden;border-radius:14px;background:#eef6ff}
+    .mdh-brand-symbol img{position:absolute;width:400px;max-width:none;height:auto;transform:translate(-135px,-31px);pointer-events:none}
+    .mdh-head-copy{flex:1;min-width:0}
+    .mdh-head-copy b{display:block;font-size:18px;line-height:1.1;letter-spacing:-.25px}
+    .mdh-head-copy span{display:block;margin-top:5px;color:#7d8ba0;font-size:10px;font-weight:650;letter-spacing:.15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mdh-local{display:flex;align-items:center;gap:5px;padding:6px 9px;border-radius:99px;background:#eafaf4;color:#3b846f;font-size:9px;font-weight:800}
+    .mdh-local:before{content:"";width:6px;height:6px;border-radius:50%;background:#16bb91}
+    .mdh-close{width:35px;height:35px;flex:none;border:0;border-radius:12px;background:#f1f5f9;color:#6e7e92;font-size:21px;line-height:1;cursor:pointer}
+    .mdh-nav{margin:14px 18px 0;padding:5px;flex:none;display:grid;grid-template-columns:1fr 1fr 1.08fr;gap:4px;border-radius:17px;background:#f1f5f9}
+    .mdh-nav button{height:48px;border:0;border-radius:13px;background:transparent;color:#748399;font-size:10px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+    .mdh-nav button.active{background:#fff;color:#0868d4;box-shadow:0 3px 12px #194a7917}
+    .mdh-nav-icon{font-size:15px;line-height:1}
+    .mdh-count{display:grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:#ff9418;color:#fff;font-size:9px}
+    .mdh-body{flex:1;min-height:0;padding:16px 18px 22px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#cbd7e5 transparent;background:#fff}
+    .mdh-result-hero{position:relative;min-height:164px;padding:22px 145px 20px 22px;border-radius:24px;overflow:hidden;background:linear-gradient(132deg,#0876ec,#2695ff);color:#fff;box-shadow:0 13px 26px #0e76e92e}
+    .mdh-result-hero:before,.mdh-result-hero:after{content:"";position:absolute;border:18px solid #ffffff1f;border-radius:50%}
+    .mdh-result-hero:before{width:130px;height:130px;right:-38px;top:-65px}
+    .mdh-result-hero:after{width:72px;height:72px;right:98px;bottom:-58px;border-width:13px}
+    .mdh-result-hero.success{background:linear-gradient(132deg,#0b9f7b,#20c99e)}
+    .mdh-eyebrow{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.05px;opacity:.82}
+    .mdh-result-hero h1{max-width:245px;margin:9px 0 16px;font-size:23px;line-height:1.08;letter-spacing:-.65px}
+    .mdh-hero-action{height:35px;padding:0 13px;border:0;border-radius:11px;background:#fff;color:#0868d4;font-size:10px;font-weight:850;cursor:pointer;box-shadow:0 4px 10px #002d5e1a}
+    .mdh-mascot-orbit{position:absolute;right:14px;bottom:-6px;z-index:2;width:132px;height:132px;border-radius:50%;overflow:hidden;background:#fff;box-shadow:0 0 0 8px #ffffff24}
+    .mdh-mascot-orbit img{position:absolute;width:145px;max-width:none;left:-6px;top:-9px}
+    .mdh-spark{position:absolute;right:143px;top:20px;z-index:3;width:13px;height:13px;border-radius:3px;background:#ff9418;transform:rotate(45deg)}
+    .mdh-section-title{display:flex;align-items:flex-end;justify-content:space-between;margin:24px 2px 11px}
+    .mdh-section-title h2{margin:0;font-size:18px;letter-spacing:-.35px}
+    .mdh-section-title span{color:#8593a5;font-size:10px;font-weight:650}
+    .mdh-warning{position:relative;margin-bottom:11px;padding:16px 16px 14px 18px;border:1px solid transparent;border-radius:19px;overflow:hidden}
+    .mdh-warning:before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 9px 9px 0}
+    .mdh-warning.danger{background:#fff1f1;border-color:#ffdcdc}.mdh-warning.danger:before{background:#ff5b61}
+    .mdh-warning.warning,.mdh-warning.note{background:#fff8e7;border-color:#ffe8ad}.mdh-warning.warning:before,.mdh-warning.note:before{background:#ffb21c}
+    .mdh-warning-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+    .mdh-warning-icon{display:grid;place-items:center;width:22px;height:22px;border-radius:8px;background:#ffb21c;color:#765300;font-size:12px;font-weight:900}
+    .danger .mdh-warning-icon{background:#ff5b61;color:#fff}
+    .mdh-warning-label{color:#7e8795;font-size:9px;font-weight:900;letter-spacing:.75px;text-transform:uppercase}
+    .mdh-warning-text{display:block;margin-bottom:13px;padding-right:14px;color:#062653;font-size:15px;font-weight:750;line-height:1.25}
+    .mdh-warning-actions{display:flex;gap:8px}
+    .mdh-warning-actions button{height:34px;padding:0 13px;border-radius:11px;font-size:10px;font-weight:850;cursor:pointer}
+    .mdh-warning-actions button:first-child{border:0;background:#062653;color:#fff}
+    .mdh-warning-actions button:last-child{border:1px solid #06265324;background:#ffffffa6;color:#68788d}
+    .mdh-view-head{margin:3px 2px 18px}
+    .mdh-view-head span{display:block;color:#1681ef;font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+    .mdh-view-head h1{margin:7px 0 6px;font-size:24px;line-height:1.08;letter-spacing:-.65px}
+    .mdh-view-head p{margin:0;color:#73849a;font-size:11px;line-height:1.45}
+    .mdh-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:12px;padding:5px;border-radius:17px;background:#f1f5f9}
+    .mdh-tab{min-height:45px;padding:6px 5px;border:0;border-radius:13px;background:transparent;color:#748399;font-size:9px;font-weight:800;line-height:1.15;cursor:pointer}
+    .mdh-tab.active{background:#fff;color:#0868d4;box-shadow:0 3px 12px #194a7917}
+    .mdh-search{width:100%;height:44px;margin-bottom:12px;padding:0 14px;border:1px solid #dce7f2;border-radius:14px;background:#fff;color:#062653;font-size:11px;outline:none}
+    .mdh-search:focus{border-color:#1681ef;box-shadow:0 0 0 3px #1681ef17}
+    .mdh-template{position:relative;width:100%;margin-bottom:9px;padding:14px 40px 14px 15px;text-align:left;border:1px solid #dce7f2;border-radius:17px;background:#fff;color:#062653;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
+    .mdh-template:after{content:"+";position:absolute;right:14px;top:50%;display:grid;place-items:center;width:25px;height:25px;margin-top:-12px;border-radius:9px;background:#eaf5ff;color:#1681ef;font-size:17px;font-weight:800}
+    .mdh-template:hover{border-color:#8bc5ff;box-shadow:0 8px 20px #123c6612;transform:translateY(-1px)}
+    .mdh-template span{display:block;margin-bottom:4px;color:#1681ef;font-size:8px;font-weight:850;letter-spacing:.5px;text-transform:uppercase}
+    .mdh-template strong{display:block;margin-bottom:5px;font-size:13px;line-height:1.25}
+    .mdh-template small{display:-webkit-box;overflow:hidden;color:#6f7f93;font-size:10px;line-height:1.4;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .mdh-section{margin:0 0 13px;border:1px solid #dce7f2;border-radius:19px;overflow:hidden;background:#fff}
+    .mdh-section>h3{margin:0;padding:13px 15px;background:#f5f9fd;font-size:13px}
+    .mdh-inner{padding:14px}
+    .mdh-grade-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
+    .mdh-grade-grid label span{display:block;margin-bottom:5px;color:#73849a;font-size:8px;font-weight:750}
+    .mdh-grade-grid input{width:100%;height:39px;padding:0 9px;border:1px solid #d4e0ec;border-radius:11px;color:#062653;font-size:12px;outline:none}
+    .mdh-grade-grid input:focus{border-color:#1681ef}
+    .mdh-grade-result{display:flex;align-items:center;gap:9px;padding:11px;border-radius:14px;background:#eaf5ff;color:#174e83}
+    .mdh-grade-result strong{font-size:22px}.mdh-grade-result span{flex:1;font-size:9px;line-height:1.35}
+    .mdh-grade-result.match{background:#e8faf4;color:#127057}.mdh-grade-result.mismatch{background:#fff1f1;color:#9a292d}
+    .mdh-grade-result button{border:0;border-radius:9px;padding:7px;background:#fff;color:#9a292d;font-size:8px;font-weight:800;cursor:pointer}
+    .mdh-picked{position:relative;margin-bottom:10px;padding:14px 44px 14px 14px;border:1px solid #dce7f2;border-radius:17px;background:#fff}
+    .mdh-picked>div{min-width:0}.mdh-picked b{display:block;margin-bottom:7px;color:#062653;font-size:11px}
+    .mdh-picked textarea,.mdh-custom,.mdh-result{width:100%;min-height:66px;padding:10px 11px;border:1px solid #d8e3ee;border-radius:12px;background:#fbfdff;color:#243b5a;font-size:10px;line-height:1.45;resize:vertical;outline:none}
+    .mdh-picked textarea:focus,.mdh-custom:focus{border-color:#1681ef;box-shadow:0 0 0 3px #1681ef12}
+    .mdh-picked>button{position:absolute;right:12px;top:12px;width:25px;height:25px;border:0;border-radius:9px;background:#fff1f1;color:#d3484e;font-size:16px;cursor:pointer}
+    .mdh-composer{margin:16px 0;padding:14px;border-radius:18px;background:#eaf5ff}
+    .mdh-composer-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .mdh-composer-head b{font-size:12px}.mdh-composer-head span{color:#64809f;font-size:8px}
+    .mdh-custom{min-height:70px;background:#fff}
+    .mdh-preview-label{display:block;margin:18px 2px 8px;font-size:12px}
+    .mdh-result{min-height:135px;background:#f8fafc;color:#52667f}
+    .mdh-empty-state{padding:26px 18px;text-align:center;border:1px dashed #cddcea;border-radius:20px;background:#f9fbfd}
+    .mdh-empty-state img{width:96px;height:96px;object-fit:cover;object-position:top;border-radius:50%;background:#fff}
+    .mdh-empty-state b{display:block;margin-top:8px;font-size:15px}.mdh-empty-state p{margin:6px 0 0;color:#73849a;font-size:10px;line-height:1.4}
+    .mdh-empty{margin:0;color:#73849a;font-size:11px;line-height:1.4}
+    .mdh-reference-section{position:relative!important;top:auto!important;z-index:1!important;margin:14px 0 0!important;border:1px solid #b9dcff!important;border-radius:19px!important;box-shadow:none!important;background:#fff!important}
+    .mdh-reference-head{padding:14px 15px!important;border-radius:18px 18px 0 0!important;background:#eaf5ff!important}
+    .mdh-reference-head h3{color:#062653!important;font-size:12px!important}.mdh-reference-head small{color:#67809c!important;font-size:9px!important;max-width:270px!important}
+    .mdh-reference-toggle{height:30px!important;padding:0 10px!important;border-radius:10px!important;background:#fff!important;color:#0868d4!important;font-size:8px!important}
+    .mdh-reference-grid{gap:8px!important}.mdh-reference-value{padding:10px!important;border-color:#dce7f2!important;border-radius:12px!important;background:#f8fbff!important}
+    .mdh-reference-value small{color:#73849a!important;font-size:8px!important}.mdh-reference-value strong{color:#062653!important;font-size:10px!important}
+    .mdh-reference-note{padding:10px!important;border-radius:11px!important;background:#fff8e7!important;color:#765300!important;font-size:9px!important}
+    .mdh-readable{margin-top:10px!important;padding-top:10px!important}.mdh-readable>span{color:#16a27e!important;font-size:9px!important}
+    .mdh-doc-row{padding:8px 4px!important;grid-template-columns:24px 1fr auto!important}.mdh-doc-row>span{width:21px!important;height:21px!important}.mdh-doc-row b{font-size:10px!important}.mdh-doc-row small{font-size:8px!important}
+    .mdh-readable-grades{padding:11px!important;border-radius:12px!important;background:#eaf5ff!important;color:#174e83!important}.mdh-readable-grades strong{font-size:18px!important}
+    .mdh-foot{flex:none;display:flex;align-items:center;gap:11px;padding:13px 18px 16px;border-top:1px solid #e6edf4;background:#ffffffed;backdrop-filter:blur(12px)}
+    .mdh-foot-check{display:grid;place-items:center;flex:none;width:39px;height:39px;border-radius:13px;background:#e8faf4;color:#16bb91;font-size:18px;font-weight:900}
+    .mdh-foot-copy{flex:1;min-width:0}.mdh-foot-copy b{display:block;font-size:12px}.mdh-foot-copy span{display:block;margin-top:3px;color:#8190a3;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mdh-foot-primary,.mdh-foot-secondary{height:41px;padding:0 14px;border-radius:14px;font-size:10px;font-weight:850;cursor:pointer}
+    .mdh-foot-primary{border:0;background:#1681ef;color:#fff;box-shadow:0 8px 17px #1681ef33}.mdh-foot-secondary{border:1px solid #dce7f2;background:#fff;color:#67798f}
+    .mdh-foot-primary:disabled{opacity:.45;cursor:default;box-shadow:none}
+    .mdh-toast{position:absolute;left:18px;right:18px;bottom:82px;z-index:50;padding:11px 13px;border-radius:13px;background:#062653;color:#fff;font-size:10px;opacity:0;pointer-events:none;transform:translateY(8px);transition:.2s;box-shadow:0 12px 30px #06265333}
+    .mdh-toast.show{opacity:1;transform:translateY(0)}
+    @media(max-width:560px){.mdh-panel{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 16px);border-radius:23px}.mdh-local{display:none}.mdh-result-hero{padding-right:122px}.mdh-mascot-orbit{width:112px;height:112px}.mdh-mascot-orbit img{width:125px}.mdh-nav{margin-left:12px;margin-right:12px}.mdh-body{padding-left:12px;padding-right:12px}.mdh-foot{padding-left:12px;padding-right:12px}}
+  `;
+
   function currentSection() {
     return SECTIONS.find(section => section.id === state.activeSection) || SECTIONS[0];
   }
@@ -702,28 +824,49 @@
     return `<button type="button" class="mdh-template" data-add="${esc(template.id)}"><span>${esc(template.group)}</span><strong>${esc(template.title)}</strong><small>${esc(template.text)}</small></button>`;
   }
 
+  function countWord(value, one, few, many) {
+    const mod100 = value % 100;
+    const mod10 = value % 10;
+    if (mod100 >= 11 && mod100 <= 19) return many;
+    if (mod10 === 1) return one;
+    if (mod10 >= 2 && mod10 <= 4) return few;
+    return many;
+  }
+
   function render() {
     if (!shadow) return;
     const oldBody = shadow.querySelector(".mdh-body");
-    const scrollTop = oldBody ? oldBody.scrollTop : 0;
+    const activeView = state.activeView || "checks";
+    const viewChanged = renderedView !== activeView;
+    const scrollTop = !viewChanged && oldBody ? oldBody.scrollTop : 0;
     const oldSearch = shadow.querySelector("#mdh-search");
     const restoreSearch = shadow.activeElement === oldSearch;
     const selectionStart = oldSearch?.selectionStart ?? 0;
     const selectionEnd = oldSearch?.selectionEnd ?? 0;
-    const warnings = state.warnings.length
-      ? state.warnings.map((item, index) => `<div class="mdh-warning ${item.level}"><span>${esc(item.text)}</span><div class="mdh-warning-actions"><button type="button" data-warning-add="${index}">Добавить</button><button type="button" data-warning-ignore="${index}">Игнорировать</button></div></div>`).join("")
-      : `<p class="mdh-empty">${state.checksRun ? "Предупреждений нет." : "Нажмите «Проверить поля», чтобы найти формальные несоответствия."}</p>`;
+    renderedView = activeView;
+    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "kato-not-city": "Населённый пункт", "parent-work": "Данные родителя" };
+    const warnings = state.warnings.map((item, index) => `<article class="mdh-warning ${item.level}"><div class="mdh-warning-head"><span class="mdh-warning-icon">${item.level === "danger" ? "!" : "?"}</span><span class="mdh-warning-label">${esc(warningLabels[item.templateId] || "Формальная проверка")}</span></div><span class="mdh-warning-text">${esc(item.text)}</span><div class="mdh-warning-actions"><button type="button" data-warning-add="${index}">Добавить</button><button type="button" data-warning-ignore="${index}">Игнорировать</button></div></article>`).join("");
     const selected = state.selected.length
       ? state.selected.map((item, index) => `<div class="mdh-picked"><div><b>${index + 1}. ${esc(item.title)}</b><textarea data-picked="${esc(item.id)}">${esc(item.text)}</textarea></div><button type="button" title="Удалить" data-remove="${esc(item.id)}">×</button></div>`).join("")
-      : `<p class="mdh-empty">Замечания ещё не выбраны.</p>`;
+      : `<div class="mdh-empty-state"><img src="${ASSETS.smile}" alt=""><b>Комментарий пока пуст</b><p>Выберите готовый шаблон или добавьте собственный пункт.</p></div>`;
     const templates = TEMPLATES.map(templateHtml).join("") || `<p class="mdh-empty">В этом разделе шаблоны не найдены.</p>`;
     const tabs = SECTIONS.map(section => `<button type="button" class="mdh-tab ${section.id === currentSection().id ? "active" : ""}" data-section="${section.id}">${esc(section.label)}</button>`).join("");
+    const warningCount = state.warnings.length;
+    const selectedCount = state.selected.length;
+    const hero = !state.checksRun
+      ? `<section class="mdh-result-hero"><div class="mdh-eyebrow">Формальная проверка</div><h1>Проверим заявление?</h1><button type="button" class="mdh-hero-action" id="mdh-run">Проверить поля</button><span class="mdh-spark"></span><div class="mdh-mascot-orbit"><img src="${ASSETS.question}" alt=""></div></section>`
+      : warningCount
+        ? `<section class="mdh-result-hero"><div class="mdh-eyebrow">Проверка завершена</div><h1>Нужно проверить ${warningCount} ${countWord(warningCount, "пункт", "пункта", "пунктов")}</h1><button type="button" class="mdh-hero-action" id="mdh-run">Проверить снова</button><span class="mdh-spark"></span><div class="mdh-mascot-orbit"><img src="${ASSETS.question}" alt=""></div></section>`
+        : `<section class="mdh-result-hero success"><div class="mdh-eyebrow">Проверка завершена</div><h1>Формальных ошибок не найдено</h1><button type="button" class="mdh-hero-action" id="mdh-run">Проверить снова</button><div class="mdh-mascot-orbit"><img src="${ASSETS.smile}" alt=""></div></section>`;
+    const checkView = `${hero}${documentReview ? documentReviewHtml() : ""}${warningCount ? `<div class="mdh-section-title"><h2>Стоит перепроверить</h2><span>${warningCount} ${countWord(warningCount, "замечание", "замечания", "замечаний")}</span></div>${warnings}` : ""}`;
+    const templateView = `<div class="mdh-view-head"><span>Библиотека</span><h1>Шаблоны замечаний</h1><p>Выберите раздел и добавьте подходящий комментарий одним нажатием.</p></div><div class="mdh-tabs">${tabs}</div><input class="mdh-search" id="mdh-search" value="${esc(state.query)}" placeholder="Поиск в разделе…">${currentSection().id === "education" ? gradeCalculatorHtml() : ""}<div>${templates}</div>`;
+    const commentView = `<div class="mdh-view-head"><span>Финальный текст</span><h1>Готовый комментарий</h1><p>Пункты можно отредактировать перед копированием.</p></div><div>${selected}</div><div class="mdh-composer"><div class="mdh-composer-head"><b>Свой пункт</b><span>Enter — добавить · Shift+Enter — новая строка</span></div><textarea class="mdh-custom" id="mdh-custom" placeholder="Введите дополнительное замечание…">${esc(state.custom)}</textarea></div><b class="mdh-preview-label">Предпросмотр</b><textarea class="mdh-result" id="mdh-result" readonly placeholder="Здесь появится готовый текст">${esc(commentText())}</textarea>`;
+    const viewContent = activeView === "templates" ? templateView : activeView === "comment" ? commentView : checkView;
+    const footer = activeView === "comment"
+      ? `<footer class="mdh-foot"><div class="mdh-foot-copy"><b>Черновик сохраняется локально</b><span>Автоматически удалится через 3 минуты</span></div><button type="button" class="mdh-foot-secondary" id="mdh-clear">Очистить</button><button type="button" class="mdh-foot-primary" id="mdh-copy">Скопировать</button></footer>`
+      : `<footer class="mdh-foot"><div class="mdh-foot-check">✓</div><div class="mdh-foot-copy"><b>${selectedCount ? `${selectedCount} ${countWord(selectedCount, "замечание готово", "замечания готовы", "замечаний готовы")}` : "Комментарий пока пуст"}</b><span>${selectedCount ? "Можно отредактировать перед копированием" : "Добавьте шаблон или свой пункт"}</span></div><button type="button" class="mdh-foot-primary" id="mdh-open-comment">К комментарию →</button></footer>`;
 
-    shadow.innerHTML = `<style>
-      :host{all:initial}.mdh-launch{position:fixed;left:20px;bottom:22px;z-index:2147483646;width:52px;height:52px;border:0;border-radius:50%;background:#006fff;color:#fff;font:800 14px Arial;box-shadow:0 8px 24px #002b664d;cursor:grab;touch-action:none;user-select:none}.mdh-launch.dragging{cursor:grabbing}.mdh-panel{position:fixed;left:18px;bottom:18px;z-index:2147483647;width:min(430px,calc(100vw - 30px));height:min(760px,calc(100vh - 36px));background:#fff;color:#172033;border:1px solid #d9e2ef;border-radius:18px;box-shadow:0 18px 55px #13233e40;font:14px Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;pointer-events:auto}.mdh-panel.hidden{display:none}.mdh-header{padding:14px 16px;background:#f7fbff;border-bottom:1px solid #dce7f4;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:grab;touch-action:none;user-select:none}.mdh-header.dragging{cursor:grabbing}.mdh-header h2{font-size:16px;margin:0}.mdh-drag-hint{color:#7b8da3;font-size:17px;letter-spacing:-3px;margin-right:8px}.mdh-close{border:0;background:#e9f1fa;border-radius:9px;width:30px;height:30px;font-size:21px;color:#34465d;cursor:pointer}.mdh-body{padding:12px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;scrollbar-gutter:stable;min-height:0}.mdh-section{border:1px solid #dce5f0;border-radius:12px;margin-bottom:10px;overflow:hidden}.mdh-section h3{font-size:13px;margin:0;padding:10px 11px;background:#f8fafc}.mdh-inner{padding:10px}.mdh-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:9px}.mdh-tab{min-height:42px;padding:6px 5px;border:1px solid #dbe4ee;border-radius:8px;background:#fff;color:#526273;font:700 11px Arial;cursor:pointer}.mdh-tab.active{color:#fff;background:#006fff;border-color:#006fff}.mdh-actions{display:flex;gap:8px}.mdh-primary,.mdh-secondary{border:0;border-radius:9px;padding:9px 10px;cursor:pointer;font-weight:700;font-size:12px}.mdh-primary{background:#006fff;color:#fff}.mdh-secondary{background:#edf3fa;color:#25415d}.mdh-warning{display:flex;gap:8px;align-items:start;border-radius:9px;padding:8px;margin-bottom:7px;font-size:12px;line-height:1.35}.mdh-warning span{flex:1}.mdh-warning-actions{display:flex;flex-direction:column;gap:4px}.mdh-warning button{border:0;border-radius:7px;padding:5px 7px;background:#fff;color:#20529a;font-size:11px;font-weight:700;cursor:pointer}.mdh-warning.warning{background:#fff7df;color:#674d00}.mdh-warning.danger{background:#fff0f0;color:#8a2020}.mdh-warning.note{background:#edf6ff;color:#174e83}.mdh-grade-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}.mdh-grade-grid label span{display:block;font-size:10px;color:#657184;margin-bottom:4px}.mdh-grade-grid input{width:100%;box-sizing:border-box;border:1px solid #cbd8e6;border-radius:8px;padding:8px;font:13px Arial}.mdh-grade-result{display:flex;align-items:center;gap:8px;padding:8px;border-radius:9px;background:#edf6ff;color:#174e83}.mdh-grade-result strong{font-size:22px}.mdh-grade-result span{flex:1;font-size:11px;line-height:1.35}.mdh-grade-result.match{background:#eaf8ef;color:#176b3a}.mdh-grade-result.mismatch{background:#fff0f0;color:#8a2020}.mdh-grade-result button{border:0;border-radius:7px;padding:6px;background:#fff;color:#8a2020;font-size:10px;font-weight:700;cursor:pointer}.mdh-empty{font-size:12px;color:#6b7787;line-height:1.35;margin:0}.mdh-search{width:100%;border:1px solid #cbd8e6;border-radius:9px;padding:9px;box-sizing:border-box;margin-bottom:8px;font:13px Arial}.mdh-template{width:100%;text-align:left;border:1px solid #dbe4ee;background:#fff;border-radius:10px;padding:9px;margin-bottom:7px;cursor:pointer;color:#172033}.mdh-template:hover{border-color:#6daaf7;background:#f8fbff}.mdh-template span{display:block;color:#5b78a0;font-size:10px;margin-bottom:3px}.mdh-template strong{display:block;font-size:12px;margin-bottom:4px}.mdh-template small{display:block;font-size:11px;line-height:1.35;color:#526273}.mdh-picked{display:flex;gap:7px;padding:8px;border-bottom:1px solid #e5eaf0}.mdh-picked:last-child{border-bottom:0}.mdh-picked>div{flex:1}.mdh-picked b{font-size:11px;display:block;margin-bottom:5px}.mdh-picked textarea,.mdh-result,.mdh-custom{width:100%;box-sizing:border-box;border:1px solid #cbd8e6;border-radius:8px;padding:7px;font:12px Arial;line-height:1.35;resize:vertical;min-height:58px}.mdh-picked button{height:25px;width:25px;border:0;background:#fff0f0;color:#b42318;border-radius:7px;cursor:pointer;font-size:18px}.mdh-custom{min-height:52px;margin-bottom:7px}.mdh-result{min-height:112px;background:#fbfdff}.mdh-footer{font-size:11px;color:#657184;padding:0 2px 2px}.mdh-toast{position:absolute;left:12px;right:12px;bottom:12px;background:#122033;color:white;padding:10px;border-radius:10px;font-size:12px;opacity:0;pointer-events:none;transform:translateY(10px);transition:.2s}.mdh-toast.show{opacity:1;transform:translateY(0)}
-    </style><button type="button" class="mdh-launch" id="mdh-launch" style="${positionStyle("launch")}" title="Открыть или перетащить помощник">MD</button><aside class="mdh-panel ${state.collapsed ? "hidden" : ""}" style="${positionStyle("panel")}"><header class="mdh-header" title="Перетащите, чтобы переместить"><h2><span class="mdh-drag-hint" aria-hidden="true">⠿</span>MyDU Helper</h2><button type="button" class="mdh-close" id="mdh-close" title="Свернуть">×</button></header><main class="mdh-body"><section class="mdh-section"><h3>Формальные проверки</h3><div class="mdh-inner"><div class="mdh-actions"><button type="button" class="mdh-primary" id="mdh-run">Проверить поля</button></div><div id="mdh-warnings" style="margin-top:8px">${warnings}</div></div></section><section class="mdh-section"><h3>Шаблоны замечаний</h3><div class="mdh-inner"><div class="mdh-tabs">${tabs}</div><input class="mdh-search" id="mdh-search" value="${esc(state.query)}" placeholder="Поиск в разделе…"><div>${templates}</div></div></section><section class="mdh-section"><h3>Готовый комментарий</h3><div class="mdh-inner"><div>${selected}</div><textarea class="mdh-custom" id="mdh-custom" placeholder="Дополнительный пункт… (Enter — добавить)">${esc(state.custom)}</textarea><textarea class="mdh-result" id="mdh-result" readonly placeholder="Здесь появится готовый текст">${esc(commentText())}</textarea><div class="mdh-actions" style="margin-top:7px"><button type="button" class="mdh-primary" id="mdh-copy">Скопировать</button><button type="button" class="mdh-secondary" id="mdh-clear">Очистить</button></div></div></section><p class="mdh-footer">Черновик хранится локально и удаляется через 3 минуты.</p></main><div class="mdh-toast" id="mdh-toast"></div></aside>`;
-    if (currentSection().id === "education") shadow.querySelector(".mdh-section").insertAdjacentHTML("afterend", gradeCalculatorHtml());
-    if (documentReview) shadow.querySelector(".mdh-body").insertAdjacentHTML("afterbegin", documentReviewHtml());
+    shadow.innerHTML = `<style>${PANEL_CSS}</style><button type="button" class="mdh-launch ${state.collapsed ? "" : "hidden"}" id="mdh-launch" style="${positionStyle("launch")}" title="Открыть или перетащить помощник"><img src="${ASSETS.peek}" alt="MyDU Helper"></button><aside class="mdh-panel ${state.collapsed ? "hidden" : ""}" style="${positionStyle("panel")}"><div class="mdh-drag-bar"></div><header class="mdh-header" title="Перетащите, чтобы переместить"><div class="mdh-brand-symbol"><img src="${ASSETS.brand}" alt="Astana IT University"></div><div class="mdh-head-copy"><b>MyDU Helper</b><span>Помощник приёмной комиссии</span></div><div class="mdh-local">локально</div><button type="button" class="mdh-close" id="mdh-close" title="Свернуть">×</button></header><nav class="mdh-nav"><button type="button" class="${activeView === "checks" ? "active" : ""}" data-view="checks"><span class="mdh-nav-icon">✓</span>Проверка${warningCount ? `<span class="mdh-count">${warningCount}</span>` : ""}</button><button type="button" class="${activeView === "templates" ? "active" : ""}" data-view="templates"><span class="mdh-nav-icon">▤</span>Шаблоны</button><button type="button" class="${activeView === "comment" ? "active" : ""}" data-view="comment"><span class="mdh-nav-icon">✎</span>Комментарий${selectedCount ? `<span class="mdh-count">${selectedCount}</span>` : ""}</button></nav><main class="mdh-body">${viewContent}</main>${footer}<div class="mdh-toast" id="mdh-toast"></div></aside>`;
     placeElement(shadow.querySelector(".mdh-panel"), "panel");
     placeElement(shadow.querySelector(".mdh-launch"), "launch");
     bindEvents();
@@ -749,9 +892,15 @@
     if (referenceToggle) referenceToggle.onclick = () => { referenceCollapsed = !referenceCollapsed; render(); };
     launch.onclick = () => { state.collapsed = false; render(); scheduleSave(); };
     shadow.querySelector("#mdh-close").onclick = () => { state.collapsed = true; render(); scheduleSave(); };
-    shadow.querySelector("#mdh-run").onclick = runChecks;
-    shadow.querySelector("#mdh-copy").onclick = copyComment;
-    shadow.querySelector("#mdh-clear").onclick = () => { state.selected = []; state.custom = ""; render(); scheduleSave(); };
+    shadow.querySelectorAll("[data-view]").forEach(node => node.onclick = () => { state.activeView = node.dataset.view; render(); scheduleSave(); });
+    const openComment = shadow.querySelector("#mdh-open-comment");
+    if (openComment) openComment.onclick = () => { state.activeView = "comment"; render(); scheduleSave(); };
+    const runButton = shadow.querySelector("#mdh-run");
+    if (runButton) runButton.onclick = runChecks;
+    const copyButton = shadow.querySelector("#mdh-copy");
+    if (copyButton) copyButton.onclick = copyComment;
+    const clearButton = shadow.querySelector("#mdh-clear");
+    if (clearButton) clearButton.onclick = () => { state.selected = []; state.custom = ""; render(); scheduleSave(); };
     shadow.querySelectorAll("[data-section]").forEach(node => node.onclick = () => { state.activeSection = node.dataset.section; state.query = ""; render(); scheduleSave(); });
     shadow.querySelectorAll("[data-add]").forEach(node => node.onclick = () => addTemplate(node.dataset.add));
     shadow.querySelectorAll("[data-warning-add]").forEach(node => node.onclick = () => resolveWarning(Number(node.dataset.warningAdd), true));
@@ -765,16 +914,19 @@
     });
     bindGradeResult();
     shadow.querySelectorAll("[data-remove]").forEach(node => node.onclick = () => { state.selected = state.selected.filter(item => item.id !== node.dataset.remove); render(); scheduleSave(); });
-    shadow.querySelectorAll("[data-picked]").forEach(node => node.oninput = event => { const item = state.selected.find(value => value.id === event.currentTarget.dataset.picked); if (item) item.text = event.currentTarget.value; scheduleSave(); });
+    shadow.querySelectorAll("[data-picked]").forEach(node => node.oninput = event => { const item = state.selected.find(value => value.id === event.currentTarget.dataset.picked); if (item) item.text = event.currentTarget.value; const result = shadow.querySelector("#mdh-result"); if (result) result.value = commentText(); scheduleSave(); });
     const custom = shadow.querySelector("#mdh-custom");
-    custom.oninput = event => { state.custom = event.currentTarget.value; shadow.querySelector("#mdh-result").value = commentText(); scheduleSave(); };
-    custom.onkeydown = event => {
-      if (event.key !== "Enter" || event.shiftKey || !event.currentTarget.value.trim()) return;
-      event.preventDefault();
-      state.custom = event.currentTarget.value;
-      addCustomPoint();
-    };
-    shadow.querySelector("#mdh-search").oninput = event => { state.query = event.currentTarget.value; render(); scheduleSave(); };
+    if (custom) {
+      custom.oninput = event => { state.custom = event.currentTarget.value; const result = shadow.querySelector("#mdh-result"); if (result) result.value = commentText(); scheduleSave(); };
+      custom.onkeydown = event => {
+        if (event.key !== "Enter" || event.shiftKey || !event.currentTarget.value.trim()) return;
+        event.preventDefault();
+        state.custom = event.currentTarget.value;
+        addCustomPoint();
+      };
+    }
+    const search = shadow.querySelector("#mdh-search");
+    if (search) search.oninput = event => { state.query = event.currentTarget.value; render(); scheduleSave(); };
   }
 
   async function mount() {
@@ -801,6 +953,7 @@
     lastAttachmentHint = text;
     lastDocumentSignature = "";
     referenceCollapsed = false;
+    state.activeView = "checks";
     state.collapsed = false;
     setTimeout(scanDocumentViewer, 150);
     setTimeout(scanDocumentViewer, 700);
