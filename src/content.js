@@ -35,6 +35,7 @@
     { id: "no-unt", group: "ЕНТ/Собеседование", title: "Нет сертификата ЕНТ", text: "Прикрепите скан-копию сертификата ЕНТ в соответствующем разделе." },
     { id: "wrong-unt", group: "ЕНТ/Собеседование", title: "Не тот файл в ЕНТ", text: "В разделе «ЕНТ» необходимо прикрепить именно скан-копию сертификата ЕНТ. Проверьте загруженный файл и замените его на корректный." },
     { id: "unt-threshold", group: "ЕНТ/Собеседование", title: "Не проходит предметный порог", text: "Ваш результат ЕНТ не проходит по предметному порогу. Необходимо пересдать ЕНТ и набрать минимальный проходной балл по каждому обязательному и профильному предмету." },
+    { id: "unt-invalid-certificate", group: "ЕНТ/Собеседование", title: "Сертификат ЕНТ недействителен", text: "Ваш сертификат ЕНТ является недействительным: не достигнут минимальный порог по обязательным предметам. По истории Казахстана необходимо набрать не менее 5 баллов, по грамотности чтения и математической грамотности — не менее 3 баллов. Предоставьте действительный сертификат ЕНТ с результатами не ниже установленных минимальных значений." },
     { id: "wrong-admission-type", group: "ЕНТ/Собеседование", title: "Неверно выбран тип поступления — собеседование", text: "Тип поступления «Собеседование» доступен для выпускников колледжа по родственной специальности и для иностранных граждан. Если Вы окончили школу, выберите поступление по ЕНТ." },
     { id: "language-date", group: "Сертификат владения иностранным языком", title: "Дата выдачи сертификата", text: "Укажите дату выдачи международного сертификата, подтверждающего владение иностранным языком." },
     { id: "language-number", group: "Сертификат владения иностранным языком", title: "Неверный номер сертификата", text: "Укажите корректный номер международного сертификата, подтверждающего владение иностранным языком (Test Report Form Number, находится снизу)." },
@@ -85,6 +86,7 @@
     { id: "unt-not-requested", group: "ЕНТ/Собеседование", title: "ЕНТ не запрошен", text: "Нажмите кнопку «Запросить результаты ЕНТ», дождитесь загрузки данных из системы, затем прикрепите скан-копию сертификата ЕНТ." },
     { id: "wrong-unt", group: "ЕНТ/Собеседование", title: "Не тот файл в ЕНТ", text: "В разделе «ЕНТ» необходимо прикрепить именно скан-копию сертификата ЕНТ. Проверьте загруженный файл и замените его на корректный." },
     { id: "unt-threshold", group: "ЕНТ/Собеседование", title: "Не проходит предметный порог", text: "Ваш результат ЕНТ не проходит по предметному порогу. Необходимо пересдать ЕНТ и набрать минимальный проходной балл по каждому обязательному и профильному предмету." },
+    { id: "unt-invalid-certificate", group: "ЕНТ/Собеседование", title: "Сертификат ЕНТ недействителен", text: "Ваш сертификат ЕНТ является недействительным: не достигнут минимальный порог по обязательным предметам. По истории Казахстана необходимо набрать не менее 5 баллов, по грамотности чтения и математической грамотности — не менее 3 баллов. Предоставьте действительный сертификат ЕНТ с результатами не ниже установленных минимальных значений." },
     { id: "math-literacy-2", group: "ЕНТ/Собеседование", title: "Математическая грамотность — 2 балла", text: "У Вас общий балл выше минимального, но по математической грамотности набрано 2 балла. Минимальный порог по математической грамотности — 3 балла, поэтому данный результат ЕНТ не проходит для поступления. Необходимо пересдать ЕНТ." },
     { id: "wrong-admission-type", group: "ЕНТ/Собеседование", title: "Неверно выбран тип поступления — собеседование", text: "Тип поступления «Собеседование» доступен для выпускников колледжа по родственной специальности и для иностранных граждан. Если Вы окончили школу, выберите поступление по ЕНТ." },
     { id: "language-date", group: "Сертификат владения иностранным языком", title: "Дата выдачи сертификата", text: "Укажите дату выдачи международного сертификата, подтверждающего владение иностранным языком." },
@@ -110,6 +112,7 @@
   let referenceCollapsed = false;
   let uiPosition = { panel: null, launch: null };
   let renderedView = null;
+  let lastMyduSection = null;
 
   function applicantId() {
     const match = location.pathname.match(/\/admission\/applicants\/(\d+)/);
@@ -260,6 +263,14 @@
     return null;
   }
 
+  function inspectWorkplace(value) {
+    const workplace = String(value || "").replace(/\s+/g, " ").trim();
+    if (!workplace || workplace.toLocaleLowerCase("ru-RU") === "нет") return null;
+    if (workplace.toLocaleLowerCase("ru-RU") === "нету") return { templateId: "parent-unemployed", level: "warning", text: "В поле «Место работы» укажите «Нет» вместо «Нету»" };
+    if (workplace.replace(/[\s.]/g, "").length <= 3) return { templateId: "parent-work", level: "warning", text: "Место работы заполнено слишком коротко" };
+    return null;
+  }
+
   function stableHash(value) {
     let hash = 2166136261;
     for (const char of value) {
@@ -299,8 +310,12 @@
     }
     if (addressWarning) results.push(addressWarning);
     for (const field of allFields.filter(item => /место работы/i.test(item.label))) {
-      if (field.value && field.value.replace(/[\s.]/g, "").length <= 3) results.push({ templateId: "parent-work", level: "warning", text: "Место работы заполнено слишком коротко" });
+      const issue = inspectWorkplace(field.value);
+      if (issue) results.push(issue);
     }
+    results.push(...missingAttachmentWarnings());
+    const untIssue = documentReview?.typeId === "unt" ? documentReview.untThreshold : null;
+    if (untIssue?.invalid) results.push(untThresholdWarning(untIssue));
     state.warnings = [...new Map(results.map(item => [warningKey(item), item])).values()];
     render();
     scheduleSave();
@@ -526,6 +541,144 @@
     return result;
   }
 
+  function numericValue(value) {
+    const parsed = Number.parseInt(String(value || "").replace(/[^\d-]/g, ""), 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function extractUntScore(documentText, subjectPattern, rowNumber = null, maximum = 140) {
+    const text = String(documentText || "");
+    const pattern = new RegExp(`(?:${subjectPattern})`, "iu");
+    const matchingLine = text.split(/\r?\n/).find(line => pattern.test(line));
+    const source = matchingLine || text;
+    const subject = source.match(pattern);
+    if (!subject) return null;
+    const afterSubject = source.slice(subject.index + subject[0].length, subject.index + subject[0].length + 140);
+    const candidates = [...afterSubject.matchAll(/(?<!\d)(\d{1,3})(?!\d)/g)]
+      .map(match => numericValue(match[1]))
+      .filter(value => value !== null && value >= 0 && value <= maximum);
+    if (!candidates.length) return null;
+    if (rowNumber !== null && candidates[0] === rowNumber) return candidates.find(value => value !== rowNumber) ?? candidates[0];
+    return candidates[0];
+  }
+
+  const UNT_SUBJECTS = [
+    { label: "История Казахстана", field: /история казахстана/i, pdf: "История\\s+Казахстана", pdfFallback: "Қазақстан\\s+тарихы", row: 1, maximum: 20, minimum: 5 },
+    { label: "Грамотность чтения", field: /грамотность чтения/i, pdf: "Грамотность\\s+чтения", pdfFallback: "Оқу\\s+сауаттылығы", row: 2, maximum: 20, minimum: 3 },
+    { label: "Математическая грамотность", field: /математическая грамотность/i, pdf: "Математическая\\s+грамотность", pdfFallback: "Математикалық\\s+сауаттылық", row: 3, maximum: 20, minimum: 3 }
+  ];
+
+  const UNT_PROFILE_SUBJECTS = [
+    { label: "Информатика", field: /(^|\s)информатика(\s|$)/i, pdf: "Информатика", row: 5, maximum: 50 },
+    { label: "Физика", field: /(^|\s)физика(\s|$)/i, pdf: "Физика", row: 5, maximum: 50 },
+    { label: "Химия", field: /(^|\s)химия(\s|$)/i, pdf: "Химия", row: 5, maximum: 50 },
+    { label: "Биология", field: /(^|\s)биология(\s|$)/i, pdf: "Биология", row: 4, maximum: 50 },
+    { label: "География", field: /(^|\s)география(\s|$)/i, pdf: "География", row: 4, maximum: 50 },
+    { label: "Всемирная история", field: /всемирная история/i, pdf: "Всемирная\\s+история", row: 5, maximum: 50 },
+    { label: "Основы права", field: /основы права/i, pdf: "Основы\\s+права", row: 5, maximum: 50 },
+    { label: "Иностранный язык", field: /иностранный язык/i, pdf: "Иностранный\\s+язык|Английский\\s+язык", row: 5, maximum: 50 },
+    { label: "Русский язык", field: /русский язык(?!.*литератур)/i, pdf: "Русский\\s+язык", row: 4, maximum: 50 },
+    { label: "Русская литература", field: /русская литература/i, pdf: "Русская\\s+литература", row: 5, maximum: 50 },
+    { label: "Казахский язык", field: /казахский язык(?!.*литератур)/i, pdf: "Казахский\\s+язык", row: 4, maximum: 50 },
+    { label: "Казахская литература", field: /казахская литература/i, pdf: "Казахская\\s+литература", row: 5, maximum: 50 },
+    { label: "Математика", field: /(^|\s)математика(\s|$)/i, pdf: "Математика(?!ческая|лық)", row: 4, maximum: 50 }
+  ];
+
+  function untData(documentText, allFields) {
+    const mandatory = UNT_SUBJECTS.map(subject => ({
+      ...subject,
+      mydu: numericValue(findValueByLabel(allFields, subject.field)),
+      pdfScore: extractUntScore(documentText, subject.pdf, subject.row, subject.maximum) ?? extractUntScore(documentText, subject.pdfFallback, subject.row, subject.maximum)
+    }));
+    const profiles = UNT_PROFILE_SUBJECTS.map(subject => ({
+      ...subject,
+      mydu: numericValue(findValueByLabel(allFields, subject.field)),
+      pdfScore: extractUntScore(documentText, subject.pdf, subject.row, subject.maximum)
+    })).filter(subject => subject.mydu !== null || subject.pdfScore !== null).slice(0, 2);
+    const total = {
+      label: "Общий балл ЕНТ",
+      mydu: numericValue(findValueByLabel(allFields, /сумма баллов ент|общий балл ент/i)),
+      pdfScore: extractUntScore(documentText, "Итого", null, 140) ?? extractUntScore(documentText, "Барлығы", null, 140)
+    };
+    const thresholdFailures = mandatory.filter(subject => subject.pdfScore !== null && subject.pdfScore < subject.minimum);
+    return { subjects: [...mandatory, ...profiles], total, thresholdFailures, invalid: thresholdFailures.length > 0 };
+  }
+
+  function untComparisons(documentText, allFields) {
+    const data = untData(documentText, allFields);
+    const values = [...data.subjects, data.total];
+    const mandatoryAvailable = data.subjects.slice(0, UNT_SUBJECTS.length).every(item => item.pdfScore !== null);
+    const thresholdMessage = data.invalid
+      ? data.thresholdFailures.map(item => `${item.label}: ${item.pdfScore} из ${item.minimum}`).join("; ")
+      : mandatoryAvailable ? "Минимальные пороги соблюдены" : "Не удалось прочитать обязательные предметы";
+    return {
+      comparisons: [
+        ...values.map(item => ({ ...comparison(item.label, item.mydu === item.pdfScore, item.mydu !== null && item.pdfScore !== null), message: item.mydu !== null && item.pdfScore !== null ? `Сертификат: ${item.pdfScore} · MyDU: ${item.mydu}` : "Нет данных для сверки" })),
+        { label: "Минимальные пороги", status: !mandatoryAvailable ? "unknown" : data.invalid ? "mismatch" : "match", message: thresholdMessage }
+      ],
+      data
+    };
+  }
+
+  function untThresholdWarning(issue) {
+    const details = issue.thresholdFailures.map(item => `${item.label} — ${item.pdfScore} (минимум ${item.minimum})`).join(", ");
+    return { templateId: "unt-invalid-certificate", key: "unt-invalid-certificate", level: "danger", text: `Сертификат ЕНТ недействителен: ${details}` };
+  }
+
+  function elementContext(element) {
+    let current = element;
+    let context = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
+    const sectionMarker = /удостоверяющ|удостоверен.*личност|приложени[ея]|аттестат|диплом|родств|свидетельств[оа] о рождении|(?<![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])(?:ент|ұбт)(?![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])|иностранн.*язык|ielts|международн.*сертификат/iu;
+    for (let depth = 0; current && current !== document.body && depth < 7; depth += 1, current = current.parentElement) {
+      const text = (current.innerText || current.textContent || "").replace(/\s+/g, " ").trim();
+      if (text.length > context.length && text.length < 2200) context = text;
+      if (sectionMarker.test(text)) return text;
+    }
+    return context;
+  }
+
+  function attachmentNearField(fieldPattern) {
+    const field = [...document.querySelectorAll("input, textarea, select")]
+      .find(element => element.offsetParent !== null && fieldPattern.test(inputLabel(element)));
+    if (!field) return false;
+    let current = field;
+    for (let depth = 0; current && current !== document.body && depth < 8; depth += 1, current = current.parentElement) {
+      const text = (current.innerText || current.textContent || "").replace(/\s+/g, " ").trim();
+      if (/\.(?:pdf|jpe?g|png|webp)\b/i.test(text)) return true;
+      if (text.length > 3200) break;
+    }
+    return false;
+  }
+
+  function languageCertificateRequired() {
+    return [...document.querySelectorAll("input[type='checkbox']")].some(input => {
+      const label = inputLabel(input);
+      return input.checked && /международн.*сертификат|владени.*иностранн.*язык/i.test(label);
+    });
+  }
+
+  function missingAttachmentWarnings() {
+    const results = [];
+    const hasUntAttachment = attachmentNearField(/сумма баллов ент|общий балл ент/i);
+    const needsLanguageCertificate = languageCertificateRequired();
+    const buttons = [...document.querySelectorAll("button:disabled")].filter(button => button.offsetParent !== null);
+    for (const button of buttons) {
+      const ownText = (button.innerText || button.textContent || "").replace(/\s+/g, " ").trim();
+      if (!/скан-коп|загруз|прикреп/i.test(ownText)) continue;
+      const context = `${ownText} ${inputLabel(button)} ${elementContext(button)}`;
+      let warning = null;
+      if (/удостоверяющ|удостоверен.*личност/i.test(context)) warning = { templateId: "no-id", label: "Документы", text: "Не загружен документ, удостоверяющий личность" };
+      else if (/приложени[ея].*(аттестат|диплом)|(аттестат|диплом).*приложени[ея]/i.test(context)) warning = { templateId: "no-appendix", label: "Документ об образовании", text: "Не загружено приложение к аттестату/диплому" };
+      else if (/аттестат|диплом/i.test(context)) warning = { templateId: "no-certificate", label: "Документ об образовании", text: "Не загружен аттестат/диплом" };
+      else if (/родств|свидетельств[оа] о рождении/i.test(context)) warning = { templateId: "relationship", label: "Документы родителя", text: "Не загружен документ, подтверждающий родство" };
+      else if (/иностранн.*язык|ielts|международн.*сертификат/i.test(context)) {
+        if (needsLanguageCertificate) warning = { templateId: "no-language-cert", label: "Сертификат", text: "Не загружен сертификат владения иностранным языком" };
+      } else if (/(?<![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])(?:ент|ұбт)(?![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])/iu.test(context) && !hasUntAttachment) warning = { templateId: "no-unt", label: "ЕНТ", text: "Не загружен сертификат ЕНТ" };
+      if (warning) results.push({ ...warning, key: `missing:${warning.templateId}`, level: "danger" });
+    }
+    return [...new Map(results.map(item => [item.key, item])).values()];
+  }
+
   function extractNumericGrades(documentText) {
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0 };
     const lines = String(documentText || "").split(/\r?\n/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
@@ -540,6 +693,7 @@
   }
 
   function documentType(documentText) {
+    if (/ҰБТ\s+НӘТИЖЕСІ|РЕЗУЛЬТАТ(?:Ы|А)\s+(?:ЕНТ|ЕДИНОГО НАЦИОНАЛЬНОГО ТЕСТИРОВАНИЯ)|СЕРТИФИКАТ\s+(?:ЕНТ|ҰБТ)|ДАТА\s+СДАЧИ\s+ЕНТ|ҰБТ\s+ТАПСЫРҒАН/i.test(documentText)) return { id: "unt", label: "Сертификат ЕНТ" };
     if (/приложени(?:е|я) к (?:аттестату|диплому)|скан-копия приложения/i.test(documentText)) return { id: "appendix", label: "Приложение с оценками" };
     if (/АТТЕСТАТ|ДИПЛОМ|ЖАЛПЫ ОРТА БІЛІМ ТУРАЛЫ|скан-копия аттестата|скан-копия диплома/i.test(documentText)) return { id: "education", label: "Аттестат/диплом" };
     if (/СВИДЕТЕЛЬСТВО О РОЖДЕНИИ|ТУУ ТУРАЛЫ|подтверждающ(?:ий|его) родств/i.test(documentText)) return { id: "birth", label: "Свидетельство о рождении" };
@@ -596,6 +750,10 @@
       row("Дата сертификата", findValueByLabel(allFields, /дата (получения|выдачи).*сертификата/i)),
       row("Балл", findValueByLabel(allFields, /(^|\s)балл(\s|$)/i))
     ];
+    if (type.id === "unt") {
+      const data = untData("", allFields);
+      return [...data.subjects, data.total].map(item => row(item.label, item.mydu));
+    }
     return [row("Тип файла", "Определите документ визуально", true)];
   }
 
@@ -622,34 +780,57 @@
     return null;
   }
 
+  function visualText(container, selector) {
+    const items = [...container.querySelectorAll(selector)].map(node => {
+      const text = (node.textContent || "").replace(/\s+/g, " ").trim();
+      const rect = node.getBoundingClientRect();
+      return { text, top: rect.top, left: rect.left, height: rect.height };
+    }).filter(item => item.text && item.height > 0);
+    if (items.length < 3) return "";
+    items.sort((a, b) => Math.abs(a.top - b.top) > 3 ? a.top - b.top : a.left - b.left);
+    const lines = [];
+    for (const item of items) {
+      const line = lines[lines.length - 1];
+      const tolerance = Math.max(3, Math.min(7, item.height * 0.45));
+      if (!line || Math.abs(line.top - item.top) > tolerance) {
+        lines.push({ top: item.top, items: [item] });
+      } else {
+        line.items.push(item);
+        line.top = (line.top * (line.items.length - 1) + item.top) / line.items.length;
+      }
+    }
+    return lines.map(line => line.items.sort((a, b) => a.left - b.left).map(item => item.text).join(" ")).join("\n");
+  }
+
   function viewerText(viewer) {
-    const selectors = [".textLayer", "[class*='textLayer']", "[class*='text-layer']", "[class*='text_layer']", "[class*='TextLayer']", "[class*='textContent']", "svg text"];
+    const layerSelectors = [".textLayer", "[class*='textLayer']", "[class*='text-layer']", "[class*='text_layer']", "[class*='TextLayer']", "[class*='textContent']"];
     const pieces = [];
-    for (const selector of selectors) {
-      viewer.querySelectorAll(selector).forEach(node => {
-        const text = (node.innerText || node.textContent || "").trim();
+    const collect = scope => {
+      const layers = new Set(layerSelectors.flatMap(selector => [...scope.querySelectorAll(selector)]));
+      layers.forEach(layer => {
+        const text = visualText(layer, "span") || (layer.innerText || layer.textContent || "").trim();
         if (text.length > 2 && !pieces.includes(text)) pieces.push(text);
       });
-    }
+      scope.querySelectorAll("svg").forEach(svg => {
+        const text = visualText(svg, "text");
+        if (text.length > 2 && !pieces.includes(text)) pieces.push(text);
+      });
+    };
+    collect(viewer);
     viewer.querySelectorAll("iframe").forEach(frame => {
       try {
         const frameDocument = frame.contentDocument;
         if (!frameDocument) return;
-        for (const selector of selectors) {
-          frameDocument.querySelectorAll(selector).forEach(node => {
-            const text = (node.innerText || node.textContent || "").trim();
-            if (text.length > 2 && !pieces.includes(text)) pieces.push(text);
-          });
-        }
+        collect(frameDocument);
         const bodyText = (frameDocument.body?.innerText || "").trim();
-        if (/УДОСТОВЕРЕНИЕ ЛИЧНОСТИ|ЖЕКЕ КУӘЛІК|СВИДЕТЕЛЬСТВО О РОЖДЕНИИ|ТУУ ТУРАЛЫ|АТТЕСТАТ|ДИПЛОМ|ЖАЛПЫ ОРТА БІЛІМ|IELTS|TEST REPORT FORM/i.test(bodyText)) pieces.push(bodyText);
+        if (/УДОСТОВЕРЕНИЕ ЛИЧНОСТИ|ЖЕКЕ КУӘЛІК|СВИДЕТЕЛЬСТВО О РОЖДЕНИИ|ТУУ ТУРАЛЫ|АТТЕСТАТ|ДИПЛОМ|ЖАЛПЫ ОРТА БІЛІМ|IELTS|TEST REPORT FORM|ҰБТ НӘТИЖЕСІ|РЕЗУЛЬТАТЫ ЕНТ/i.test(bodyText) && !pieces.length) pieces.push(bodyText);
       } catch (_) {
         // Cross-origin/isolated PDF frames cannot expose their text to the extension.
       }
     });
-    if (pieces.join(" ").length > 30) return pieces.join(" ");
+    if (pieces.join(" ").length > 30) return pieces.join("\n");
     const fallback = (viewer.innerText || "").trim();
-    return /УДОСТОВЕРЕНИЕ ЛИЧНОСТИ|ЖЕКЕ КУӘЛІК|СВИДЕТЕЛЬСТВО О РОЖДЕНИИ|ТУУ ТУРАЛЫ|IELTS|TEST REPORT FORM/i.test(fallback) ? fallback : "";
+    return /УДОСТОВЕРЕНИЕ ЛИЧНОСТИ|ЖЕКЕ КУӘЛІК|СВИДЕТЕЛЬСТВО О РОЖДЕНИИ|ТУУ ТУРАЛЫ|IELTS|TEST REPORT FORM|ҰБТ НӘТИЖЕСІ|РЕЗУЛЬТАТЫ ЕНТ/i.test(fallback) ? fallback : "";
   }
 
   function comparisonsForDocument(type, text, allFields) {
@@ -657,6 +838,7 @@
     if (type.id === "birth") return birthCertificateComparisons(text, allFields);
     if (type.id === "ielts") return ieltsComparisons(text, allFields);
     if (type.id === "education") return educationComparisons(text, allFields);
+    if (type.id === "unt") return untComparisons(text, allFields).comparisons;
     return [];
   }
 
@@ -674,7 +856,8 @@
     const text = layerText || "";
     const type = documentType(`${layerText} ${lastAttachmentHint}`);
     const allFields = fields();
-    const comparisons = text ? comparisonsForDocument(type, text, allFields) : [];
+    const unt = text && type.id === "unt" ? untComparisons(text, allFields) : null;
+    const comparisons = unt ? unt.comparisons : text ? comparisonsForDocument(type, text, allFields) : [];
     const grades = text && type.id === "appendix" ? extractNumericGrades(text) : null;
     const reference = referenceValues(type, allFields);
     const signature = `${filename}|${lastAttachmentHint}|${type.id}|${text.length}|${comparisons.map(item => item.status).join(",")}|${grades?.total || 0}|${reference.map(item => `${item.label}:${item.value}`).join("|")}`;
@@ -687,16 +870,23 @@
       textAvailable: text.length > 30,
       source: layerText ? "text" : "",
       comparisons,
+      untThreshold: unt?.data || null,
       grades,
       reference
     };
+    if (unt) {
+      const before = state.warnings.length;
+      if (unt.data.invalid && !state.warnings.some(item => warningKey(item) === "unt-invalid-certificate")) state.warnings.push(untThresholdWarning(unt.data));
+      if (!unt.data.invalid) state.warnings = state.warnings.filter(item => warningKey(item) !== "unt-invalid-certificate");
+      if (state.warnings.length !== before) scheduleSave();
+    }
     render();
   }
 
   function documentReviewHtml() {
     if (!documentReview) return "";
     const icons = { match: "✓", mismatch: "!", unknown: "?", manual: "○" };
-    const rows = documentReview.comparisons.map(item => `<div class="mdh-doc-row ${item.status}"><span>${icons[item.status]}</span><b>${esc(item.label)}</b><small>${item.status === "match" ? "Совпадает" : item.status === "mismatch" ? "Не найдено совпадение" : item.status === "manual" ? "Проверить вручную" : "Нет поля в MyDU"}</small></div>`).join("");
+    const rows = documentReview.comparisons.map(item => `<div class="mdh-doc-row ${item.status}"><span>${icons[item.status]}</span><b>${esc(item.label)}</b><small>${esc(item.message || (item.status === "match" ? "Совпадает" : item.status === "mismatch" ? "Не найдено совпадение" : item.status === "manual" ? "Проверить вручную" : "Нет поля в MyDU"))}</small></div>`).join("");
     const references = (documentReview.reference || []).map(item => `<div class="mdh-reference-value ${item.wide ? "wide" : ""} ${item.empty ? "empty" : ""}"><small>${esc(item.label)}</small><strong>${esc(item.value)}</strong></div>`).join("");
     let grades = "";
     if (documentReview.grades) {
@@ -834,6 +1024,51 @@
     return SECTIONS.find(section => section.id === state.activeSection) || SECTIONS[0];
   }
 
+  function myduSectionId(value) {
+    const label = String(value || "").replace(/\s+/g, " ").trim().toLocaleLowerCase("ru-RU");
+    if (label === "персональные данные") return "personal";
+    if (label === "сведения о предыдущем образовании") return "education";
+    if (label === "сведения о поступлении") return "admission";
+    return null;
+  }
+
+  function setTemplateSection(sectionId) {
+    if (!state || !SECTIONS.some(section => section.id === sectionId) || state.activeSection === sectionId) return false;
+    state.activeSection = sectionId;
+    state.query = "";
+    if (state.activeView === "templates") render();
+    scheduleSave();
+    return true;
+  }
+
+  function activeMyduSection() {
+    const selectors = "[role='tab'], .ant-tabs-tab, .nav-tabs a, .nav-tabs button, .nav-link, [class*='tab-label'], [class*='tabLabel']";
+    const tabs = [...document.querySelectorAll(selectors)].map(node => ({ node, sectionId: myduSectionId(node.innerText || node.textContent) })).filter(item => item.sectionId);
+    const active = tabs.find(({ node }) => {
+      const className = typeof node.className === "string" ? node.className : "";
+      const parentClass = typeof node.parentElement?.className === "string" ? node.parentElement.className : "";
+      return node.getAttribute("aria-selected") === "true" || node.getAttribute("aria-current") === "page" || /(?:^|\s)active(?:\s|$)|tab-active|tabs-tab-active/i.test(`${className} ${parentClass}`);
+    });
+    return active?.sectionId || null;
+  }
+
+  function syncMyduSection() {
+    if (!state) return;
+    const sectionId = activeMyduSection();
+    if (!sectionId || sectionId === lastMyduSection) return;
+    lastMyduSection = sectionId;
+    setTemplateSection(sectionId);
+  }
+
+  function captureMyduSection(event) {
+    if (!state || !(event.target instanceof Element)) return;
+    const tab = event.target.closest("[role='tab'], button, a, .ant-tabs-tab, .nav-link, [class*='tab-label'], [class*='tabLabel']");
+    const sectionId = myduSectionId(tab?.innerText || tab?.textContent);
+    if (!sectionId) return;
+    lastMyduSection = sectionId;
+    setTemplateSection(sectionId);
+  }
+
   function templateHtml(template) {
     const query = state.query.trim().toLowerCase();
     if (!currentSection().groups.includes(template.group)) return "";
@@ -862,8 +1097,8 @@
     const selectionStart = oldSearch?.selectionStart ?? 0;
     const selectionEnd = oldSearch?.selectionEnd ?? 0;
     renderedView = activeView;
-    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "kato-not-city": "Населённый пункт", "parent-work": "Данные родителя" };
-    const warnings = state.warnings.map((item, index) => `<article class="mdh-warning ${item.level}"><div class="mdh-warning-head"><span class="mdh-warning-icon">${item.level === "danger" ? "!" : "?"}</span><span class="mdh-warning-label">${esc(warningLabels[item.templateId] || "Формальная проверка")}</span></div><span class="mdh-warning-text">${esc(item.text)}</span><div class="mdh-warning-actions"><button type="button" data-warning-add="${index}">Добавить</button><button type="button" data-warning-ignore="${index}">Игнорировать</button></div></article>`).join("");
+    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "kato-not-city": "Населённый пункт", "parent-work": "Данные родителя", "parent-unemployed": "Данные родителя", "unt-invalid-certificate": "Сертификат ЕНТ", "no-id": "Документы", "no-certificate": "Документ об образовании", "no-appendix": "Документ об образовании", "relationship": "Документы родителя", "no-unt": "ЕНТ", "no-language-cert": "Сертификат" };
+    const warnings = state.warnings.map((item, index) => `<article class="mdh-warning ${item.level}"><div class="mdh-warning-head"><span class="mdh-warning-icon">${item.level === "danger" ? "!" : "?"}</span><span class="mdh-warning-label">${esc(item.label || warningLabels[item.templateId] || "Формальная проверка")}</span></div><span class="mdh-warning-text">${esc(item.text)}</span><div class="mdh-warning-actions"><button type="button" data-warning-add="${index}">Добавить</button><button type="button" data-warning-ignore="${index}">Игнорировать</button></div></article>`).join("");
     const selected = state.selected.length
       ? state.selected.map((item, index) => `<div class="mdh-picked"><div><b>${index + 1}. ${esc(item.title)}</b><textarea data-picked="${esc(item.id)}">${esc(item.text)}</textarea></div><button type="button" title="Удалить" data-remove="${esc(item.id)}">×</button></div>`).join("")
       : `<div class="mdh-empty-state"><img src="${ASSETS.smile}" alt=""><b>Комментарий пока пуст</b><p>Выберите готовый шаблон или добавьте собственный пункт.</p></div>`;
@@ -962,6 +1197,8 @@
       launch: validPosition(savedPosition?.launch)
     };
     state = saved && saved.expiresAt > Date.now() ? { ...freshState(), ...saved.state } : freshState();
+    lastMyduSection = activeMyduSection();
+    if (lastMyduSection) state.activeSection = lastMyduSection;
     if (saved && saved.expiresAt <= Date.now()) chrome.storage.local.remove(draftKey);
     root = document.createElement("div"); root.id = "mydu-manager-helper-root"; root.style.all = "initial";
     shadow = root.attachShadow({ mode: "open" }); document.documentElement.appendChild(root);
@@ -983,17 +1220,19 @@
   }
 
   document.addEventListener("click", captureAttachmentHint, true);
+  document.addEventListener("click", captureMyduSection, true);
 
   setInterval(async () => {
     const id = applicantId();
     if (id === lastApplicantId) {
+      syncMyduSection();
       scanDocumentViewer();
       return;
     }
     clearTimeout(saveTimer);
     if (lastApplicantId && draftKey) await storageSet({ [draftKey]: draftPayload() });
     root?.remove(); root = shadow = null; lastApplicantId = null;
-    documentReview = null; lastDocumentSignature = ""; lastAttachmentHint = ""; referenceCollapsed = false;
+    documentReview = null; lastDocumentSignature = ""; lastAttachmentHint = ""; referenceCollapsed = false; lastMyduSection = null;
     if (id) await mount();
   }, 1000);
   mount();
