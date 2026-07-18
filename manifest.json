@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "MyDU Manager Helper",
+  "version": "0.4.0",
+  "description": "Локальный помощник менеджера приёмной комиссии AITU. Не отправляет заявления самостоятельно.",
+  "permissions": ["storage", "clipboardWrite"],
+  "host_permissions": ["https://my-du.astanait.edu.kz/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://my-du.astanait.edu.kz/admission/applicants/*"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
