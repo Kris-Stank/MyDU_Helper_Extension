@@ -113,6 +113,15 @@
   let uiPosition = { panel: null, launch: null };
   let renderedView = null;
   let lastMyduSection = null;
+  let pageFieldCache = { personal: [], education: [], admission: [], social: [] };
+  let ocrWorkerPromise = null;
+  let ocrJob = null;
+  let ocrGeneration = 0;
+  const ocrCache = new Map();
+  const ocrPageStability = new Map();
+  const OCR_LANGUAGES = ["kaz", "rus", "eng"];
+  const OCR_MAX_WIDTH = 2400;
+  const OCR_MIN_WIDTH = 1400;
 
   function applicantId() {
     const match = location.pathname.match(/\/admission\/applicants\/(\d+)/);
@@ -235,10 +244,29 @@
     return (accessible || `${name} ${nearby}`).replace(/\s+/g, " ").trim();
   }
 
-  function fields() {
-    return [...document.querySelectorAll("input, textarea, button[disabled]")]
-      .filter(element => element.offsetParent !== null)
-      .map(element => ({ label: inputLabel(element), value: String(element.value || element.innerText || "").trim(), type: element.type, checked: element.checked }));
+  function fields(includeHidden = false) {
+    return [...document.querySelectorAll("input, textarea, select, button[disabled]")]
+      .filter(element => includeHidden || element.offsetParent !== null)
+      .map(element => ({
+        label: inputLabel(element),
+        value: String(element.tagName === "SELECT" ? element.selectedOptions?.[0]?.textContent || element.value || "" : element.value || element.innerText || "").trim(),
+        type: element.type,
+        checked: element.checked
+      }));
+  }
+
+  function documentFields() {
+    const current = fields(true).filter(field => field.type !== "hidden" && field.label);
+    const cached = Object.values(pageFieldCache).flat();
+    return [...new Map([...current, ...cached].map(field => [`${field.label}\u0000${field.value}\u0000${field.type || ""}`, field])).values()];
+  }
+
+  function cacheCurrentSectionFields(sectionId = lastMyduSection || activeMyduSection()) {
+    if (!sectionId || !Object.hasOwn(pageFieldCache, sectionId)) return;
+    const active = activeMyduSection();
+    if (active && active !== sectionId) return;
+    const snapshot = fields().filter(field => field.type !== "hidden" && field.label);
+    if (snapshot.length) pageFieldCache[sectionId] = snapshot;
   }
 
   function findValue(allFields, phrase) {
@@ -271,6 +299,36 @@
     return null;
   }
 
+  function nameCaseWarnings(allFields) {
+    const nameFields = allFields.filter(field => field.value && /(?:^|\s)(?:фио|фамилия|имя|отчество)(?=\s|$)/i.test(field.label) && !["checkbox", "radio", "button", "submit", "hidden"].includes(field.type));
+    const applicantFields = new Set(nameFields.filter(field => !/транслитом|латиниц/i.test(field.label)).slice(0, 3));
+    const invalidApplicant = [];
+    const invalidParents = [];
+    for (const field of nameFields) {
+      if (hasCorrectNameCase(field.value)) continue;
+      const label = field.label.replace(/\s*\*\s*/g, "").trim();
+      if (/родител|матер|мать|отец|опекун|законн.*представител/i.test(field.label)) invalidParents.push(label);
+      else if (/транслитом|латиниц|абитуриент|заявител/i.test(field.label) || applicantFields.has(field)) invalidApplicant.push(label);
+      else invalidParents.push(label);
+    }
+    const results = [];
+    if (invalidApplicant.length) results.push({ templateId: "fio-case", key: "fio-case", level: "warning", text: `Неверный регистр ФИО абитуриента: ${[...new Set(invalidApplicant)].join(", ")}` });
+    if (invalidParents.length) results.push({ templateId: "parent-fio-case", key: "parent-fio-case", level: "warning", text: `Неверный регистр ФИО родителя: ${[...new Set(invalidParents)].join(", ")}` });
+    return results;
+  }
+
+  function schoolInterviewWarning(allFields) {
+    const admissionType = findValueByLabel(allFields, /тип поступления/i);
+    if (!/собеседован/i.test(admissionType)) return null;
+    const citizenship = findValueByLabel(allFields, /гражданство/i);
+    if (citizenship && !/казахстан|kazakhstan|қазақстан/i.test(citizenship)) return null;
+    const school = allFields.some(field => {
+      const relevantLabel = /категор|предыдущ.*образован|образовательн.*учрежден|учебн.*заведен|место окончания|тип.*образован|вид.*учрежден/i.test(field.label);
+      return relevantLabel && /выпускник.*школ|общеобразовательн.*школ|(^|\s)школ[аы](\s|$)|общее среднее/i.test(field.value);
+    });
+    return school ? { templateId: "wrong-admission-type", key: "wrong-admission-type", level: "danger", text: "Для выпускника школы выбран тип поступления «Собеседование» вместо «ЕНТ»" } : null;
+  }
+
   function stableHash(value) {
     let hash = 2166136261;
     for (const char of value) {
@@ -286,6 +344,8 @@
 
   function runChecks() {
     const allFields = fields();
+    const comprehensiveFields = documentFields();
+    const activePageSection = activeMyduSection() || lastMyduSection || "personal";
     const results = [];
     state.checksRun = true;
     const series = findValueByLabel(allFields, /серия (аттестата|диплома)/i);
@@ -312,6 +372,18 @@
     for (const field of allFields.filter(item => /место работы/i.test(item.label))) {
       const issue = inspectWorkplace(field.value);
       if (issue) results.push(issue);
+    }
+    if (activePageSection === "personal") results.push(...nameCaseWarnings(comprehensiveFields));
+    if (activePageSection === "admission") {
+      const admissionIssue = schoolInterviewWarning(comprehensiveFields);
+      if (admissionIssue) results.push(admissionIssue);
+    }
+    if (activePageSection === "education") {
+      const calculatedAverage = gradeAverage();
+      const applicationAverage = myduAverageData();
+      if (calculatedAverage && applicationAverage.value !== null && Math.abs(calculatedAverage.value - applicationAverage.value) >= 0.005) {
+        results.push({ templateId: "wrong-average", key: "wrong-average", level: "danger", text: `Средний балл не совпадает: по оценкам — ${calculatedAverage.value.toFixed(2)}, в заявлении — ${applicationAverage.raw}` });
+      }
     }
     results.push(...missingAttachmentWarnings());
     const untIssue = documentReview?.typeId === "unt" ? documentReview.untThreshold : null;
@@ -379,20 +451,44 @@
     return { total, value: weighted / total };
   }
 
+  function valueNearLabel(pattern) {
+    let best = null;
+    for (const element of document.querySelectorAll("input, textarea, select")) {
+      if (element.type === "hidden") continue;
+      const value = String(element.tagName === "SELECT" ? element.selectedOptions?.[0]?.textContent || element.value || "" : element.value || "").trim();
+      if (!value) continue;
+      for (let current = element.parentElement, depth = 0; current && current !== document.body && depth < 6; current = current.parentElement, depth += 1) {
+        const text = String(current.innerText || current.textContent || "").replace(/\s+/g, " ").trim();
+        if (text.length > 700) break;
+        if (!pattern.test(text)) continue;
+        const score = text.length + depth * 100;
+        if (!best || score < best.score) best = { score, value };
+        break;
+      }
+    }
+    return best?.value || "";
+  }
+
+  function myduAverageData() {
+    const labelPattern = /средний\s+балл.*(?:аттестат|диплом)/i;
+    const raw = findValueByLabel(documentFields(), labelPattern) || valueNearLabel(labelPattern);
+    const parsed = Number.parseFloat(raw.replace(",", "."));
+    return { raw, value: Number.isFinite(parsed) ? parsed : null };
+  }
+
   function myduAverage() {
-    const value = findValueByLabel(fields(), /средний балл (аттестата|диплома)/i);
-    const parsed = Number.parseFloat(value.replace(",", "."));
-    return Number.isFinite(parsed) ? parsed : null;
+    return myduAverageData().value;
   }
 
   function gradeResultHtml() {
     const calculated = gradeAverage();
     if (!calculated) return `<p class="mdh-empty">Введите количество числовых оценок.</p>`;
     const displayed = calculated.value.toFixed(2);
-    const current = myduAverage();
-    if (current === null) return `<div class="mdh-grade-result"><strong>${displayed}</strong><span>Оценок: ${calculated.total}. Для сравнения откройте раздел образования в MyDU.</span></div>`;
-    if (Math.abs(current - calculated.value) < 0.005) return `<div class="mdh-grade-result match"><strong>${displayed}</strong><span>Совпадает со средним баллом в MyDU (${current.toFixed(2)}).</span></div>`;
-    return `<div class="mdh-grade-result mismatch"><strong>${displayed}</strong><span>В MyDU указано ${current.toFixed(2)} — значения не совпадают.</span><button type="button" id="mdh-add-average">Добавить замечание</button></div>`;
+    const current = myduAverageData();
+    const values = `<div class="mdh-grade-values"><div><small>По оценкам</small><strong>${displayed}</strong></div><div><small>В заявлении</small><strong>${esc(current.raw || "—")}</strong></div></div>`;
+    if (current.value === null) return `<div class="mdh-grade-result">${values}<span>Оценок: ${calculated.total}. Поле «Средний балл аттестата» в MyDU не найдено.</span></div>`;
+    if (Math.abs(current.value - calculated.value) < 0.005) return `<div class="mdh-grade-result match">${values}<span>Значения совпадают.</span></div>`;
+    return `<div class="mdh-grade-result mismatch">${values}<span>Значения не совпадают.</span><button type="button" id="mdh-add-average">Добавить замечание</button></div>`;
   }
 
   function gradeCalculatorHtml() {
@@ -515,20 +611,66 @@
     ];
   }
 
+  function ieltsNameValues(allFields) {
+    return {
+      family: findValueByLabel(allFields, /фамилия.*(транслитом|латиниц)|(?:транслитом|латиниц).*фамилия/i),
+      first: findValueByLabel(allFields, /(?:^|\s)имя.*(транслитом|латиниц)|(?:транслитом|латиниц).*(?:^|\s)имя/i)
+    };
+  }
+
+  function extractIeltsName(documentText, kind) {
+    const pattern = kind === "family"
+      ? /FAMILY\s+NAME[^A-Z]+([A-Z][A-Z'’\-]{1,})/i
+      : /FIRST\s+NAME(?:\(S\))?[^A-Z]+([A-Z][A-Z'’\-]{1,})/i;
+    return documentText.match(pattern)?.[1] || "";
+  }
+
+  function extractIeltsOverall(documentText) {
+    const direct = documentText.match(/OVERALL\s*BAND\s*SCORE[^0-9]{0,40}([0-9](?:[.,][0-9])?)/i);
+    if (direct) return Number.parseFloat(direct[1].replace(",", "."));
+    const line = String(documentText || "").split(/\r?\n/).find(value => /OVERALL|BAND\s*SCORE/i.test(value));
+    if (!line) return null;
+    const afterLabel = line.replace(/^.*?(?:OVERALL\s*BAND\s*SCORE|BAND\s*SCORE)/i, "");
+    const value = afterLabel.match(/([0-9](?:[.,][0-9])?)/);
+    return value ? Number.parseFloat(value[1].replace(",", ".")) : null;
+  }
+
+  function ieltsComparison(label, documentValue, myduValue, matched) {
+    const available = Boolean(String(myduValue || "").trim());
+    return {
+      ...comparison(label, matched, available),
+      message: !available ? "Нет поля в MyDU" : documentValue ? `IELTS: ${documentValue} · MyDU: ${myduValue}` : matched ? "Совпадает" : "Не удалось прочитать значение в IELTS"
+    };
+  }
+
   function ieltsComparisons(documentText, allFields) {
-    const nameFields = applicantNameFields(allFields);
-    const certificateFields = allFields.filter(field => /сертификат|балл|дата получения/i.test(field.label));
+    const names = ieltsNameValues(allFields);
+    const certificateFields = languageCertificateFields(allFields);
     const number = findValueByLabel(certificateFields, /номер сертификата/i);
-    const date = findValueByLabel(certificateFields, /дата (получения|выдачи).*сертификата/i);
-    const score = findValueByLabel(certificateFields, /(^|\s)балл(\s|$)/i);
-    const overall = documentText.match(/OVERALL\s*BAND\s*SCORE\s*([0-9]+(?:[.,][0-9]+)?)/i);
-    const scoreMatched = overall && Number.parseFloat(overall[1].replace(",", ".")) === Number.parseFloat(score.replace(",", "."));
+    const date = findValueByLabel(certificateFields, /дата (получения|выдачи).*сертификата|дата сертификата/i);
+    const score = findValueByLabel(certificateFields, /(^|\s)балл(\s|$)|балл.*сертификат/i);
+    const family = extractIeltsName(documentText, "family");
+    const first = extractIeltsName(documentText, "first");
+    const overall = extractIeltsOverall(documentText);
+    const scoreNumber = Number.parseFloat(String(score).replace(",", "."));
     return [
-      comparison("ФИО", nameFields.length > 1 && nameFields.every(field => documentContainsValue(documentText, field.value)), nameFields.length > 1),
-      comparison("Test Report Form Number", documentContainsValue(documentText, number), Boolean(number)),
-      comparison("Дата сертификата", documentContainsDate(documentText, date), Boolean(date)),
-      comparison("Overall Band Score", Boolean(scoreMatched), Boolean(score) && Boolean(overall))
+      ieltsComparison("Фамилия", family, names.family, documentContainsValue(documentText, names.family)),
+      ieltsComparison("Имя", first, names.first, documentContainsValue(documentText, names.first)),
+      ieltsComparison("Test Report Form Number", documentContainsValue(documentText, number) ? number : "", number, documentContainsValue(documentText, number)),
+      ieltsComparison("Date", documentContainsDate(documentText, date) ? date : "", date, documentContainsDate(documentText, date)),
+      ieltsComparison("Overall Band Score", overall === null ? "" : overall.toFixed(1), score, overall !== null && Number.isFinite(scoreNumber) && overall === scoreNumber)
     ];
+  }
+
+  function languageCertificateFields(allFields) {
+    const start = allFields.findIndex(field => /имеется международн.*сертификат|название международн.*сертификат|владени.*иностранн.*язык/i.test(field.label));
+    if (start >= 0) {
+      const relativeEnd = allFields.slice(start + 1).findIndex(field => /общий результат экзамена|балл за модуль|сведения о сдаче ает/i.test(field.label));
+      const end = relativeEnd >= 0 ? start + 1 + relativeEnd : allFields.length;
+      const sectionFields = allFields.slice(start, end);
+      if (sectionFields.some(field => /номер сертификата/i.test(field.label))) return sectionFields;
+    }
+    return allFields.filter(field => /сертификат|балл|дата получения|дата выдачи/i.test(field.label) && !/(?:^|\s)ент(?:\s|$)|ұбт|икт/iu.test(field.label));
   }
 
   function educationComparisons(documentText, allFields) {
@@ -549,17 +691,27 @@
   function extractUntScore(documentText, subjectPattern, rowNumber = null, maximum = 140) {
     const text = String(documentText || "");
     const pattern = new RegExp(`(?:${subjectPattern})`, "iu");
-    const matchingLine = text.split(/\r?\n/).find(line => pattern.test(line));
-    const source = matchingLine || text;
-    const subject = source.match(pattern);
-    if (!subject) return null;
-    const afterSubject = source.slice(subject.index + subject[0].length, subject.index + subject[0].length + 140);
-    const candidates = [...afterSubject.matchAll(/(?<!\d)(\d{1,3})(?!\d)/g)]
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const lineIndex = lines.findIndex(line => pattern.test(line));
+    if (lineIndex < 0) return null;
+    const numbers = source => [...String(source).matchAll(/(?<!\d)(\d{1,3})(?!\d)/g)]
       .map(match => numericValue(match[1]))
       .filter(value => value !== null && value >= 0 && value <= maximum);
-    if (!candidates.length) return null;
-    if (rowNumber !== null && candidates[0] === rowNumber) return candidates.find(value => value !== rowNumber) ?? candidates[0];
-    return candidates[0];
+    const matchingLine = lines[lineIndex];
+    const subject = matchingLine.match(pattern);
+    const sameLine = numbers(matchingLine.slice((subject?.index || 0) + (subject?.[0]?.length || 0)));
+    if (sameLine.length) return sameLine[0];
+    for (const offset of [1, -1, 2, -2]) {
+      const nearby = lines[lineIndex + offset];
+      if (!nearby || pattern.test(nearby)) continue;
+      const candidates = numbers(nearby);
+      if (candidates.length && !/[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]/u.test(nearby)) return candidates[candidates.length - 1];
+    }
+    const flat = text.replace(/\s+/g, " ");
+    const flatSubject = flat.match(pattern);
+    if (!flatSubject) return null;
+    const flatCandidates = numbers(flat.slice(flatSubject.index + flatSubject[0].length, flatSubject.index + flatSubject[0].length + 180));
+    return flatCandidates.find(value => rowNumber === null || value !== rowNumber) ?? flatCandidates[0] ?? null;
   }
 
   const UNT_SUBJECTS = [
@@ -590,31 +742,27 @@
       mydu: numericValue(findValueByLabel(allFields, subject.field)),
       pdfScore: extractUntScore(documentText, subject.pdf, subject.row, subject.maximum) ?? extractUntScore(documentText, subject.pdfFallback, subject.row, subject.maximum)
     }));
-    const profiles = UNT_PROFILE_SUBJECTS.map(subject => ({
-      ...subject,
-      mydu: numericValue(findValueByLabel(allFields, subject.field)),
-      pdfScore: extractUntScore(documentText, subject.pdf, subject.row, subject.maximum)
-    })).filter(subject => subject.mydu !== null || subject.pdfScore !== null).slice(0, 2);
     const total = {
       label: "Общий балл ЕНТ",
       mydu: numericValue(findValueByLabel(allFields, /сумма баллов ент|общий балл ент/i)),
       pdfScore: extractUntScore(documentText, "Итого", null, 140) ?? extractUntScore(documentText, "Барлығы", null, 140)
     };
     const thresholdFailures = mandatory.filter(subject => subject.pdfScore !== null && subject.pdfScore < subject.minimum);
-    return { subjects: [...mandatory, ...profiles], total, thresholdFailures, invalid: thresholdFailures.length > 0 };
+    return { subjects: mandatory, total, thresholdFailures, invalid: thresholdFailures.length > 0 };
   }
 
   function untComparisons(documentText, allFields) {
     const data = untData(documentText, allFields);
-    const values = [...data.subjects, data.total];
-    const mandatoryAvailable = data.subjects.slice(0, UNT_SUBJECTS.length).every(item => item.pdfScore !== null);
-    const thresholdMessage = data.invalid
-      ? data.thresholdFailures.map(item => `${item.label}: ${item.pdfScore} из ${item.minimum}`).join("; ")
-      : mandatoryAvailable ? "Минимальные пороги соблюдены" : "Не удалось прочитать обязательные предметы";
+    const thresholdComparisons = data.subjects.map(item => ({
+      label: item.label,
+      status: item.pdfScore === null ? "unknown" : item.pdfScore >= item.minimum ? "match" : "mismatch",
+      message: item.pdfScore === null ? "Не удалось прочитать балл в сертификате" : `Сертификат: ${item.pdfScore} · минимум: ${item.minimum}`
+    }));
+    const totalAvailable = data.total.mydu !== null && data.total.pdfScore !== null;
     return {
       comparisons: [
-        ...values.map(item => ({ ...comparison(item.label, item.mydu === item.pdfScore, item.mydu !== null && item.pdfScore !== null), message: item.mydu !== null && item.pdfScore !== null ? `Сертификат: ${item.pdfScore} · MyDU: ${item.mydu}` : "Нет данных для сверки" })),
-        { label: "Минимальные пороги", status: !mandatoryAvailable ? "unknown" : data.invalid ? "mismatch" : "match", message: thresholdMessage }
+        ...thresholdComparisons,
+        { ...comparison(data.total.label, data.total.mydu === data.total.pdfScore, totalAvailable), message: totalAvailable ? `Сертификат: ${data.total.pdfScore} · MyDU: ${data.total.mydu}` : "Нет данных для сверки" }
       ],
       data
     };
@@ -638,14 +786,15 @@
   }
 
   function attachmentNearField(fieldPattern) {
-    const field = [...document.querySelectorAll("input, textarea, select")]
-      .find(element => element.offsetParent !== null && fieldPattern.test(inputLabel(element)));
-    if (!field) return false;
-    let current = field;
-    for (let depth = 0; current && current !== document.body && depth < 8; depth += 1, current = current.parentElement) {
-      const text = (current.innerText || current.textContent || "").replace(/\s+/g, " ").trim();
-      if (/\.(?:pdf|jpe?g|png|webp)\b/i.test(text)) return true;
-      if (text.length > 3200) break;
+    const candidates = [...document.querySelectorAll("input, textarea, select")]
+      .filter(element => element.offsetParent !== null && fieldPattern.test(inputLabel(element)));
+    for (const field of candidates) {
+      let current = field;
+      for (let depth = 0; current && current !== document.body && depth < 8; depth += 1, current = current.parentElement) {
+        const text = (current.innerText || current.textContent || "").replace(/\s+/g, " ").trim();
+        if (/\.(?:pdf|jpe?g|png|webp)\b/i.test(text)) return true;
+        if (text.length > 3200) break;
+      }
     }
     return false;
   }
@@ -660,6 +809,7 @@
   function missingAttachmentWarnings() {
     const results = [];
     const hasUntAttachment = attachmentNearField(/сумма баллов ент|общий балл ент/i);
+    const hasLanguageAttachment = attachmentNearField(/номер сертификата|название международн.*сертификат/i);
     const needsLanguageCertificate = languageCertificateRequired();
     const buttons = [...document.querySelectorAll("button:disabled")].filter(button => button.offsetParent !== null);
     for (const button of buttons) {
@@ -672,7 +822,7 @@
       else if (/аттестат|диплом/i.test(context)) warning = { templateId: "no-certificate", label: "Документ об образовании", text: "Не загружен аттестат/диплом" };
       else if (/родств|свидетельств[оа] о рождении/i.test(context)) warning = { templateId: "relationship", label: "Документы родителя", text: "Не загружен документ, подтверждающий родство" };
       else if (/иностранн.*язык|ielts|международн.*сертификат/i.test(context)) {
-        if (needsLanguageCertificate) warning = { templateId: "no-language-cert", label: "Сертификат", text: "Не загружен сертификат владения иностранным языком" };
+        if (needsLanguageCertificate && !hasLanguageAttachment) warning = { templateId: "no-language-cert", label: "Сертификат", text: "Не загружен сертификат владения иностранным языком" };
       } else if (/(?<![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])(?:ент|ұбт)(?![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])/iu.test(context) && !hasUntAttachment) warning = { templateId: "no-unt", label: "ЕНТ", text: "Не загружен сертификат ЕНТ" };
       if (warning) results.push({ ...warning, key: `missing:${warning.templateId}`, level: "danger" });
     }
@@ -693,7 +843,7 @@
   }
 
   function documentType(documentText) {
-    if (/ҰБТ\s+НӘТИЖЕСІ|РЕЗУЛЬТАТ(?:Ы|А)\s+(?:ЕНТ|ЕДИНОГО НАЦИОНАЛЬНОГО ТЕСТИРОВАНИЯ)|СЕРТИФИКАТ\s+(?:ЕНТ|ҰБТ)|ДАТА\s+СДАЧИ\s+ЕНТ|ҰБТ\s+ТАПСЫРҒАН/i.test(documentText)) return { id: "unt", label: "Сертификат ЕНТ" };
+    if (/ҰБТ\s+НӘТИЖЕСІ|РЕЗУЛЬТАТ(?:Ы|А)\s+(?:ЕНТ|ЕДИНОГО НАЦИОНАЛЬНОГО ТЕСТИРОВАНИЯ)|СЕРТИФИКАТ\s+(?:ЕНТ|ҰБТ)|ДАТА\s+СДАЧИ\s+ЕНТ|ҰБТ\s+ТАПСЫРҒАН|CERTIFICATE\s+OF\s+UNT|UNT\s+CERTIFICATE/i.test(documentText)) return { id: "unt", label: "Сертификат ЕНТ" };
     if (/приложени(?:е|я) к (?:аттестату|диплому)|скан-копия приложения/i.test(documentText)) return { id: "appendix", label: "Приложение с оценками" };
     if (/АТТЕСТАТ|ДИПЛОМ|ЖАЛПЫ ОРТА БІЛІМ ТУРАЛЫ|скан-копия аттестата|скан-копия диплома/i.test(documentText)) return { id: "education", label: "Аттестат/диплом" };
     if (/СВИДЕТЕЛЬСТВО О РОЖДЕНИИ|ТУУ ТУРАЛЫ|подтверждающ(?:ий|его) родств/i.test(documentText)) return { id: "birth", label: "Свидетельство о рождении" };
@@ -744,12 +894,17 @@
     if (type.id === "appendix") return [
       row("Средний балл в MyDU", findValueByLabel(allFields, /средний балл (аттестата|диплома)/i), true)
     ];
-    if (type.id === "ielts") return [
-      row("ФИО абитуриента", names.applicant, true),
-      row("Номер сертификата", findValueByLabel(allFields, /номер сертификата/i), true),
-      row("Дата сертификата", findValueByLabel(allFields, /дата (получения|выдачи).*сертификата/i)),
-      row("Балл", findValueByLabel(allFields, /(^|\s)балл(\s|$)/i))
-    ];
+    if (type.id === "ielts") {
+      const certificateFields = languageCertificateFields(allFields);
+      const ieltsNames = ieltsNameValues(allFields);
+      return [
+        row("Фамилия (транслитом)", ieltsNames.family),
+        row("Имя (транслитом)", ieltsNames.first),
+        row("Test Report Form Number", findValueByLabel(certificateFields, /номер сертификата/i), true),
+        row("Date", findValueByLabel(certificateFields, /дата (получения|выдачи).*сертификата|дата сертификата/i)),
+        row("Overall Band Score", findValueByLabel(certificateFields, /(^|\s)балл(\s|$)|балл.*сертификат/i))
+      ];
+    }
     if (type.id === "unt") {
       const data = untData("", allFields);
       return [...data.subjects, data.total].map(item => row(item.label, item.mydu));
@@ -763,7 +918,7 @@
       return rect.width > 220 && rect.height > 220 && rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
     };
     const dialogs = [...document.querySelectorAll("[role='dialog'], [aria-modal='true']")]
-      .filter(element => visible(element) && /\.pdf\b/i.test(element.textContent || ""))
+      .filter(element => visible(element) && /\.(?:pdf|png|jpe?g|webp)\b/i.test(element.textContent || ""))
       .sort((a, b) => {
         const ar = a.getBoundingClientRect(); const br = b.getBoundingClientRect();
         return ar.width * ar.height - br.width * br.height;
@@ -774,7 +929,7 @@
       let candidate = element;
       for (let depth = 0; candidate && candidate !== document.body && depth < 14; depth += 1, candidate = candidate.parentElement) {
         const text = (candidate.textContent || "").slice(0, 1200);
-        if (/\.pdf\b/i.test(text) || candidate.getAttribute?.("role") === "dialog" || candidate.getAttribute?.("aria-modal") === "true") return candidate;
+        if (/\.(?:pdf|png|jpe?g|webp)\b/i.test(text) || candidate.getAttribute?.("role") === "dialog" || candidate.getAttribute?.("aria-modal") === "true") return candidate;
       }
     }
     return null;
@@ -833,6 +988,196 @@
     return /УДОСТОВЕРЕНИЕ ЛИЧНОСТИ|ЖЕКЕ КУӘЛІК|СВИДЕТЕЛЬСТВО О РОЖДЕНИИ|ТУУ ТУРАЛЫ|IELTS|TEST REPORT FORM|ҰБТ НӘТИЖЕСІ|РЕЗУЛЬТАТЫ ЕНТ/i.test(fallback) ? fallback : "";
   }
 
+  function mediaDimensions(node) {
+    const rect = node.getBoundingClientRect();
+    const width = Number(node.width || node.naturalWidth || rect.width || 0);
+    const height = Number(node.height || node.naturalHeight || rect.height || 0);
+    return { width, height, area: width * height, top: rect.top, left: rect.left };
+  }
+
+  function viewerPages(viewer) {
+    const candidates = [];
+    const seen = new Set();
+    const collect = scope => {
+      scope.querySelectorAll("canvas, img").forEach(node => {
+        if (seen.has(node)) return;
+        seen.add(node);
+        const dimensions = mediaDimensions(node);
+        if (dimensions.width < 220 || dimensions.height < 220 || dimensions.area < 80000) return;
+        try {
+          const style = node.ownerDocument.defaultView.getComputedStyle(node);
+          if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return;
+        } catch (_) {
+          // A rendered page is still usable when computed styles are unavailable.
+        }
+        candidates.push({ node, ...dimensions });
+      });
+      scope.querySelectorAll("iframe").forEach(frame => {
+        try {
+          if (frame.contentDocument) collect(frame.contentDocument);
+        } catch (_) {
+          // Cross-origin PDF frames cannot expose their rendered pages.
+        }
+      });
+    };
+    collect(viewer);
+    if (!candidates.length) return [];
+    const largestArea = Math.max(...candidates.map(item => item.area));
+    return candidates
+      .filter(item => item.area >= largestArea * 0.45)
+      .sort((a, b) => Math.abs(a.top - b.top) > 4 ? a.top - b.top : a.left - b.left);
+  }
+
+  function ocrPageFingerprint(pages) {
+    return pages.map(page => `${Math.round(page.width)}x${Math.round(page.height)}`).join(",");
+  }
+
+  function ocrCacheKey(filename, pages) {
+    return `${applicantId() || "unknown"}|${filename}|${lastAttachmentHint}|pages:${pages.length}`;
+  }
+
+  function rememberOcr(key, value) {
+    ocrCache.set(key, value);
+    while (ocrCache.size > 8) ocrCache.delete(ocrCache.keys().next().value);
+  }
+
+  function ocrStatusText(stateName, pageIndex = 0, pageCount = 0) {
+    if (stateName === "recognizing") return `Распознаю страницу ${Math.min(pageIndex + 1, pageCount)}/${pageCount}…`;
+    if (stateName === "queued") return "OCR ожидает завершения предыдущего документа…";
+    if (stateName === "loading") return "Жду полной загрузки страниц документа…";
+    if (stateName === "initializing") return "Подготавливаю локальный OCR…";
+    if (stateName === "done") return "Локальное распознавание завершено";
+    if (stateName === "error") return "Не удалось распознать документ";
+    return "Подготавливаю документ к распознаванию…";
+  }
+
+  function updateOcrUi(key, stateName, progress, pageIndex = 0, pageCount = 0) {
+    const normalizedProgress = Math.max(0, Math.min(100, Math.round(progress || 0)));
+    if (ocrJob?.key === key) {
+      ocrJob.state = stateName;
+      ocrJob.progress = normalizedProgress;
+      ocrJob.pageIndex = pageIndex;
+      ocrJob.pageCount = pageCount;
+    }
+    if (!documentReview || documentReview.cacheKey !== key) return;
+    documentReview.ocrState = stateName;
+    documentReview.ocrProgress = normalizedProgress;
+    documentReview.ocrPageIndex = pageIndex;
+    documentReview.ocrPageCount = pageCount;
+    const label = shadow?.querySelector("#mdh-ocr-label");
+    const percent = shadow?.querySelector("#mdh-ocr-percent");
+    const bar = shadow?.querySelector("#mdh-ocr-bar");
+    if (label) label.textContent = ocrStatusText(stateName, pageIndex, pageCount);
+    if (percent) percent.textContent = `${normalizedProgress}%`;
+    if (bar) bar.style.width = `${normalizedProgress}%`;
+  }
+
+  function ensureOcrWorker() {
+    if (ocrWorkerPromise) return ocrWorkerPromise;
+    ocrWorkerPromise = (async () => {
+      if (!globalThis.Tesseract?.createWorker) throw new Error("OCR-библиотека не загружена");
+      return globalThis.Tesseract.createWorker(OCR_LANGUAGES, 1, {
+        workerPath: chrome.runtime.getURL("ocr/worker.min.js"),
+        corePath: chrome.runtime.getURL("ocr/core"),
+        langPath: chrome.runtime.getURL("ocr/lang"),
+        // Content scripts run with the MyDU page origin. The blob wrapper lets
+        // that origin start a worker which then imports our packaged worker.
+        workerBlobURL: true,
+        gzip: true,
+        cacheMethod: "none",
+        errorHandler: () => {},
+        logger: message => {
+          const job = ocrJob;
+          if (!job) return;
+          if (message.status === "recognizing text") {
+            const pageProgress = Number.isFinite(message.progress) ? message.progress : 0;
+            const overall = ((job.pageIndex + pageProgress) / Math.max(job.pageCount, 1)) * 100;
+            updateOcrUi(job.key, "recognizing", overall, job.pageIndex, job.pageCount);
+          } else if (job.state !== "recognizing") {
+            updateOcrUi(job.key, "initializing", job.progress || 0, job.pageIndex, job.pageCount);
+          }
+        }
+      });
+    })().catch(error => {
+      ocrWorkerPromise = null;
+      throw error;
+    });
+    return ocrWorkerPromise;
+  }
+
+  function canvasBlob(canvas) {
+    return new Promise((resolve, reject) => {
+      try {
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Не удалось получить изображение страницы PDF")), "image/png");
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  async function preparedOcrImage(page) {
+    const sourceWidth = Math.max(1, Math.round(page.width));
+    const sourceHeight = Math.max(1, Math.round(page.height));
+    const targetWidth = Math.min(OCR_MAX_WIDTH, Math.max(OCR_MIN_WIDTH, sourceWidth));
+    const scale = targetWidth / sourceWidth;
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+    const context = canvas.getContext("2d", { alpha: false, willReadFrequently: false });
+    if (!context) throw new Error("Браузер не создал изображение для OCR");
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(page.node, 0, 0, canvas.width, canvas.height);
+    return canvasBlob(canvas);
+  }
+
+  function safeOcrError(error) {
+    const message = String(error?.message || error || "Неизвестная ошибка").replace(/chrome-extension:\/\/[^\s]+/g, "локальный файл OCR");
+    if (/security|taint|cross-origin/i.test(message)) return "Браузер запретил получить изображение страницы PDF.";
+    if (/fetch|network|load/i.test(message)) return "Не удалось загрузить локальные файлы OCR. Перезагрузите расширение.";
+    return message.slice(0, 180);
+  }
+
+  async function runDocumentOcr(key, pages, token) {
+    if (ocrJob) return;
+    ocrJob = { key, token, state: "initializing", progress: 0, pageIndex: 0, pageCount: pages.length };
+    updateOcrUi(key, "initializing", 0, 0, pages.length);
+    try {
+      const worker = await ensureOcrWorker();
+      const texts = [];
+      const confidences = [];
+      for (let index = 0; index < pages.length; index += 1) {
+        if (token !== ocrGeneration) return;
+        updateOcrUi(key, "recognizing", (index / pages.length) * 100, index, pages.length);
+        const image = await preparedOcrImage(pages[index]);
+        if (token !== ocrGeneration) return;
+        const result = await worker.recognize(image);
+        texts.push(String(result?.data?.text || "").trim());
+        if (Number.isFinite(result?.data?.confidence)) confidences.push(result.data.confidence);
+      }
+      if (token !== ocrGeneration) return;
+      const text = texts.filter(Boolean).join("\n\n--- Страница ---\n\n");
+      const confidence = confidences.length ? confidences.reduce((sum, value) => sum + value, 0) / confidences.length : null;
+      rememberOcr(key, { text, confidence, pageCount: pages.length, completedAt: Date.now() });
+      updateOcrUi(key, "done", 100, Math.max(0, pages.length - 1), pages.length);
+    } catch (error) {
+      if (token === ocrGeneration) rememberOcr(key, { text: "", error: safeOcrError(error), pageCount: pages.length, completedAt: Date.now() });
+    } finally {
+      if (ocrJob?.key === key) ocrJob = null;
+      if (token === ocrGeneration) {
+        lastDocumentSignature = "";
+        scanDocumentViewer();
+      }
+    }
+  }
+
+  function softenLowConfidenceMismatches(comparisons, confidence) {
+    if (!Number.isFinite(confidence) || confidence >= 55) return comparisons;
+    return comparisons.map(item => item.status === "mismatch" ? { ...item, status: "manual", message: "OCR распознал документ неуверенно — проверьте вручную" } : item);
+  }
+
   function comparisonsForDocument(type, text, allFields) {
     if (type.id === "identity") return identityComparisons(text, allFields);
     if (type.id === "birth") return birthCertificateComparisons(text, allFields);
@@ -847,20 +1192,46 @@
     const viewer = findDocumentViewer();
     if (!viewer) {
       if (documentReview) {
+        ocrGeneration += 1;
+        ocrPageStability.clear();
         documentReview = null; lastDocumentSignature = ""; lastAttachmentHint = ""; referenceCollapsed = false; render();
       }
       return;
     }
     const layerText = viewerText(viewer);
-    const filename = ((viewer.innerText || "").match(/[^\n]*\.pdf\b/i) || ["Открытый PDF"])[0].trim();
-    const text = layerText || "";
-    const type = documentType(`${layerText} ${lastAttachmentHint}`);
-    const allFields = fields();
+    const filename = ((viewer.innerText || "").match(/[^\n]*\.(?:pdf|png|jpe?g|webp)\b/i) || ["Открытый документ"])[0].trim();
+    const pages = viewerPages(viewer);
+    const cacheKey = ocrCacheKey(filename, pages);
+    const cached = ocrCache.get(cacheKey);
+    const text = layerText || cached?.text || "";
+    const source = layerText ? "text" : cached?.text ? "ocr" : "";
+    const type = documentType(`${text} ${lastAttachmentHint} ${filename}`);
+    const allFields = documentFields();
     const unt = text && type.id === "unt" ? untComparisons(text, allFields) : null;
-    const comparisons = unt ? unt.comparisons : text ? comparisonsForDocument(type, text, allFields) : [];
+    const rawComparisons = unt ? unt.comparisons : text ? comparisonsForDocument(type, text, allFields) : [];
+    const comparisons = source === "ocr" ? softenLowConfidenceMismatches(rawComparisons, cached?.confidence) : rawComparisons;
     const grades = text && type.id === "appendix" ? extractNumericGrades(text) : null;
     const reference = referenceValues(type, allFields);
-    const signature = `${filename}|${lastAttachmentHint}|${type.id}|${text.length}|${comparisons.map(item => item.status).join(",")}|${grades?.total || 0}|${reference.map(item => `${item.label}:${item.value}`).join("|")}`;
+    let ocrState = "";
+    let ocrProgress = 0;
+    if (!layerText) {
+      if (cached?.error) ocrState = "error";
+      else if (cached) { ocrState = "done"; ocrProgress = 100; }
+      else if (ocrJob?.key === cacheKey) { ocrState = ocrJob.state; ocrProgress = ocrJob.progress; }
+      else if (ocrJob) ocrState = "queued";
+      else if (!pages.length) ocrState = "loading";
+      else {
+        const fingerprint = ocrPageFingerprint(pages);
+        const stable = ocrPageStability.get(cacheKey);
+        if (!stable || stable.fingerprint !== fingerprint) {
+          ocrPageStability.set(cacheKey, { fingerprint, since: Date.now() });
+          ocrState = "loading";
+        } else {
+          ocrState = Date.now() - stable.since >= 350 ? "initializing" : "loading";
+        }
+      }
+    }
+    const signature = `${filename}|${lastAttachmentHint}|${type.id}|${source}|${text.length}|${ocrState}|${comparisons.map(item => item.status).join(",")}|${grades?.total || 0}|${reference.map(item => `${item.label}:${item.value}`).join("|")}`;
     if (signature === lastDocumentSignature) return;
     lastDocumentSignature = signature;
     documentReview = {
@@ -868,19 +1239,31 @@
       typeId: type.id,
       type: type.label,
       textAvailable: text.length > 30,
-      source: layerText ? "text" : "",
+      source,
       comparisons,
       untThreshold: unt?.data || null,
       grades,
-      reference
+      reference,
+      cacheKey,
+      recognizedText: text,
+      ocrState,
+      ocrProgress,
+      ocrPageIndex: ocrJob?.key === cacheKey ? ocrJob.pageIndex : 0,
+      ocrPageCount: pages.length || cached?.pageCount || 0,
+      ocrConfidence: cached?.confidence ?? null,
+      ocrError: cached?.error || ""
     };
-    if (unt) {
+    if (unt && (source !== "ocr" || !Number.isFinite(cached?.confidence) || cached.confidence >= 55)) {
       const before = state.warnings.length;
       if (unt.data.invalid && !state.warnings.some(item => warningKey(item) === "unt-invalid-certificate")) state.warnings.push(untThresholdWarning(unt.data));
       if (!unt.data.invalid) state.warnings = state.warnings.filter(item => warningKey(item) !== "unt-invalid-certificate");
       if (state.warnings.length !== before) scheduleSave();
     }
     render();
+    if (!layerText && !cached && pages.length && ocrState === "initializing" && !ocrJob) {
+      const token = ocrGeneration;
+      void runDocumentOcr(cacheKey, pages, token);
+    }
   }
 
   function documentReviewHtml() {
@@ -895,10 +1278,26 @@
       const comparisonText = current === null ? "Средний балл в MyDU сейчас не виден." : Math.abs(current - value) < 0.005 ? `Совпадает с MyDU (${current.toFixed(2)}).` : `В MyDU указано ${current.toFixed(2)} — проверьте расхождение.`;
       grades = `<div class="mdh-readable-grades"><b>Оценок в читаемом тексте: ${documentReview.grades.total}</b><span>5 — ${documentReview.grades.counts[5]}, 4 — ${documentReview.grades.counts[4]}, 3 — ${documentReview.grades.counts[3]}, 2 — ${documentReview.grades.counts[2]}</span><strong>Средний балл: ${value.toFixed(2)}</strong><small>${comparisonText} Проверьте количества по документу.</small></div>`;
     }
+    let ocr = "";
+    if (!documentReview.source || documentReview.source === "ocr") {
+      if (["loading", "queued", "initializing", "recognizing"].includes(documentReview.ocrState)) {
+        const progress = Math.max(0, Math.min(100, Math.round(documentReview.ocrProgress || 0)));
+        ocr = `<div class="mdh-ocr-state"><div><b id="mdh-ocr-label">${esc(ocrStatusText(documentReview.ocrState, documentReview.ocrPageIndex, documentReview.ocrPageCount))}</b><span id="mdh-ocr-percent">${progress}%</span></div><div class="mdh-ocr-track"><i id="mdh-ocr-bar" style="width:${progress}%"></i></div><small>OCR работает локально в браузере. Обычно первая загрузка занимает дольше.</small></div>`;
+      } else if (documentReview.ocrState === "error") {
+        ocr = `<div class="mdh-ocr-error"><b>OCR не запустился</b><span>${esc(documentReview.ocrError)}</span><button type="button" id="mdh-ocr-retry">Повторить</button></div>`;
+      } else if (documentReview.ocrState === "done") {
+        const confidence = Number.isFinite(documentReview.ocrConfidence) ? ` · уверенность ${Math.round(documentReview.ocrConfidence)}%` : "";
+        ocr = `<p class="mdh-ocr-done">Текст получен локальным OCR${confidence}. Возможны ошибки распознавания — окончательно сверьте документ глазами.</p>`;
+      }
+    }
+    const sourceLabel = documentReview.source === "ocr" ? "OCR завершён — проверьте найденные совпадения" : "Текст PDF доступен для автосверки";
     const readable = documentReview.textAvailable
-      ? (rows || grades ? `<div class="mdh-readable"><span>Текст PDF доступен для автосверки</span>${rows}${grades}</div>` : `<p class="mdh-reference-note">Текст PDF читается, но для этого типа документа автоматические поля не настроены.</p>`)
-      : `<p class="mdh-reference-note">У PDF нет доступного текстового слоя. Сверяйте документ вручную со значениями MyDU выше.</p>`;
-    return `<style>.mdh-reference-section{position:sticky;top:-12px;z-index:20;border-color:#9cc7ff;box-shadow:0 8px 24px #173d6626;background:#fff}.mdh-reference-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;background:#eaf4ff}.mdh-reference-head div{min-width:0}.mdh-reference-head h3{padding:0;background:none;font-size:13px}.mdh-reference-head small{display:block;margin-top:2px;color:#476987;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}.mdh-reference-toggle{border:0;border-radius:7px;background:#fff;color:#1557a0;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer}.mdh-reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mdh-reference-value{padding:8px;border:1px solid #d9e6f4;border-radius:8px;background:#f8fbff;min-width:0;user-select:text}.mdh-reference-value.wide{grid-column:1/-1}.mdh-reference-value small{display:block;color:#668099;font-size:9px;margin-bottom:3px}.mdh-reference-value strong{display:block;color:#102a43;font-size:12px;line-height:1.25;overflow-wrap:anywhere}.mdh-reference-value.empty strong{color:#a13b3b}.mdh-reference-note{margin:8px 0 0;padding:7px;border-radius:7px;background:#fff7df;color:#6c5309;font-size:10px;line-height:1.35}.mdh-readable{margin-top:8px;border-top:1px solid #dfe8f2;padding-top:8px}.mdh-readable>span{display:block;color:#167044;font-size:10px;font-weight:700;margin-bottom:5px}.mdh-doc-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:5px;padding:6px;border-bottom:1px solid #e6ebf1}.mdh-doc-row>span{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-weight:800}.mdh-doc-row b{font-size:11px}.mdh-doc-row small{font-size:9px}.mdh-doc-row.match>span{background:#dff5e7;color:#167044}.mdh-doc-row.match small{color:#167044}.mdh-doc-row.mismatch>span{background:#ffe4e4;color:#a22121}.mdh-doc-row.mismatch small{color:#a22121}.mdh-doc-row.unknown>span,.mdh-doc-row.manual>span{background:#edf3fa;color:#536b84}.mdh-readable-grades{display:grid;gap:4px;padding:8px;border-radius:8px;background:#f3f8ff;color:#173d66;font-size:10px}.mdh-readable-grades strong{font-size:16px}.mdh-readable-grades small{line-height:1.35;color:#536b84}</style><section class="mdh-section mdh-reference-section"><div class="mdh-reference-head"><div><h3>Данные MyDU · ${esc(documentReview.type)}</h3><small title="${esc(documentReview.filename)}">${esc(documentReview.filename)}</small></div><button type="button" class="mdh-reference-toggle" id="mdh-reference-toggle">${referenceCollapsed ? "Развернуть" : "Свернуть"}</button></div>${referenceCollapsed ? "" : `<div class="mdh-inner"><div class="mdh-reference-grid">${references}</div>${readable}</div>`}</section>`;
+      ? (rows || grades ? `<div class="mdh-readable"><span>${sourceLabel}</span>${rows}${grades}</div>` : `<p class="mdh-reference-note">Документ прочитан, но для этого типа автоматические поля не настроены.</p>`)
+      : documentReview.ocrState === "done" ? `<p class="mdh-reference-note">OCR завершён, но не смог получить достаточно текста. Сверьте документ вручную.</p>` : "";
+    const textPreview = documentReview.recognizedText
+      ? `<details class="mdh-ocr-text"><summary>Показать распознанный текст</summary><pre>${esc(documentReview.recognizedText.slice(0, 12000))}${documentReview.recognizedText.length > 12000 ? "\n…" : ""}</pre></details>`
+      : "";
+    return `<style>.mdh-reference-section{position:sticky;top:-12px;z-index:20;border-color:#9cc7ff;box-shadow:0 8px 24px #173d6626;background:#fff}.mdh-reference-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;background:#eaf4ff}.mdh-reference-head div{min-width:0}.mdh-reference-head h3{padding:0;background:none;font-size:13px}.mdh-reference-head small{display:block;margin-top:2px;color:#476987;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}.mdh-reference-toggle{border:0;border-radius:7px;background:#fff;color:#1557a0;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer}.mdh-reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mdh-reference-value{padding:8px;border:1px solid #d9e6f4;border-radius:8px;background:#f8fbff;min-width:0;user-select:text}.mdh-reference-value.wide{grid-column:1/-1}.mdh-reference-value small{display:block;color:#668099;font-size:9px;margin-bottom:3px}.mdh-reference-value strong{display:block;color:#102a43;font-size:12px;line-height:1.25;overflow-wrap:anywhere}.mdh-reference-value.empty strong{color:#a13b3b}.mdh-reference-note{margin:8px 0 0;padding:7px;border-radius:7px;background:#fff7df;color:#6c5309;font-size:10px;line-height:1.35}.mdh-readable{margin-top:8px;border-top:1px solid #dfe8f2;padding-top:8px}.mdh-readable>span{display:block;color:#167044;font-size:10px;font-weight:700;margin-bottom:5px}.mdh-doc-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:5px;padding:6px;border-bottom:1px solid #e6ebf1}.mdh-doc-row>span{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-weight:800}.mdh-doc-row b{font-size:11px}.mdh-doc-row small{font-size:9px}.mdh-doc-row.match>span{background:#dff5e7;color:#167044}.mdh-doc-row.match small{color:#167044}.mdh-doc-row.mismatch>span{background:#ffe4e4;color:#a22121}.mdh-doc-row.mismatch small{color:#a22121}.mdh-doc-row.unknown>span,.mdh-doc-row.manual>span{background:#edf3fa;color:#536b84}.mdh-readable-grades{display:grid;gap:4px;padding:8px;border-radius:8px;background:#f3f8ff;color:#173d66;font-size:10px}.mdh-readable-grades strong{font-size:16px}.mdh-readable-grades small{line-height:1.35;color:#536b84}.mdh-ocr-state,.mdh-ocr-error{margin-top:9px;padding:10px;border-radius:11px;background:#edf6ff;color:#174e83}.mdh-ocr-state>div:first-child{display:flex;justify-content:space-between;gap:8px;font-size:9px}.mdh-ocr-track{height:6px;margin:8px 0;border-radius:99px;background:#d7e8fa;overflow:hidden}.mdh-ocr-track i{display:block;height:100%;border-radius:99px;background:#1681ef;transition:width .2s}.mdh-ocr-state small{display:block;color:#65809d;font-size:8px;line-height:1.35}.mdh-ocr-error{display:grid;grid-template-columns:1fr auto;gap:4px 8px;background:#fff1f1;color:#9a292d}.mdh-ocr-error b,.mdh-ocr-error span{font-size:9px}.mdh-ocr-error span{grid-column:1/2}.mdh-ocr-error button{grid-column:2;grid-row:1/3;border:0;border-radius:9px;background:#fff;color:#9a292d;font-size:8px;font-weight:800;cursor:pointer}.mdh-ocr-done{margin:9px 0 0;padding:9px;border-radius:11px;background:#e8faf4;color:#127057;font-size:9px;line-height:1.4}.mdh-ocr-text{margin-top:9px;border:1px solid #dce7f2;border-radius:11px;background:#fbfdff}.mdh-ocr-text summary{padding:9px;color:#0868d4;font-size:9px;font-weight:800;cursor:pointer}.mdh-ocr-text pre{max-height:190px;margin:0;padding:9px;overflow:auto;border-top:1px solid #e5edf5;color:#40566f;font:9px/1.4 Consolas,monospace;white-space:pre-wrap;word-break:break-word;user-select:text}</style><section class="mdh-section mdh-reference-section"><div class="mdh-reference-head"><div><h3>Данные MyDU · ${esc(documentReview.type)}</h3><small title="${esc(documentReview.filename)}">${esc(documentReview.filename)}</small></div><button type="button" class="mdh-reference-toggle" id="mdh-reference-toggle">${referenceCollapsed ? "Развернуть" : "Свернуть"}</button></div>${referenceCollapsed ? "" : `<div class="mdh-inner"><div class="mdh-reference-grid">${references}</div>${ocr}${readable}${textPreview}</div>`}</section>`;
   }
 
   const PANEL_CSS = `
@@ -981,7 +1380,7 @@
     .mdh-grade-grid input{width:100%;height:39px;padding:0 9px;border:1px solid #d4e0ec;border-radius:11px;color:#062653;font-size:12px;outline:none}
     .mdh-grade-grid input:focus{border-color:#1681ef}
     .mdh-grade-result{display:flex;align-items:center;gap:9px;padding:11px;border-radius:14px;background:#eaf5ff;color:#174e83}
-    .mdh-grade-result strong{font-size:22px}.mdh-grade-result span{flex:1;font-size:9px;line-height:1.35}
+    .mdh-grade-values{display:grid;grid-template-columns:repeat(2,minmax(74px,1fr));gap:7px}.mdh-grade-values>div{padding:8px 9px;border-radius:10px;background:#ffffffa8}.mdh-grade-values small{display:block;margin-bottom:3px;font-size:7px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;opacity:.72}.mdh-grade-values strong{display:block;font-size:18px}.mdh-grade-result span{flex:1;font-size:9px;line-height:1.35}
     .mdh-grade-result.match{background:#e8faf4;color:#127057}.mdh-grade-result.mismatch{background:#fff1f1;color:#9a292d}
     .mdh-grade-result button{border:0;border-radius:9px;padding:7px;background:#fff;color:#9a292d;font-size:8px;font-weight:800;cursor:pointer}
     .mdh-picked{position:relative;margin-bottom:10px;padding:14px 44px 14px 14px;border:1px solid #dce7f2;border-radius:17px;background:#fff}
@@ -1029,6 +1428,7 @@
     if (label === "персональные данные") return "personal";
     if (label === "сведения о предыдущем образовании") return "education";
     if (label === "сведения о поступлении") return "admission";
+    if (label === "социальные сведения") return "social";
     return null;
   }
 
@@ -1052,12 +1452,23 @@
     return active?.sectionId || null;
   }
 
+  function resetChecksForSection(sectionId) {
+    if (!state || !lastMyduSection || sectionId === lastMyduSection) return;
+    state.warnings = [];
+    state.checksRun = false;
+    if (state.activeView === "checks") render();
+    scheduleSave();
+  }
+
   function syncMyduSection() {
     if (!state) return;
     const sectionId = activeMyduSection();
     if (!sectionId || sectionId === lastMyduSection) return;
+    resetChecksForSection(sectionId);
     lastMyduSection = sectionId;
     setTemplateSection(sectionId);
+    setTimeout(() => cacheCurrentSectionFields(sectionId), 120);
+    setTimeout(() => cacheCurrentSectionFields(sectionId), 500);
   }
 
   function captureMyduSection(event) {
@@ -1065,8 +1476,12 @@
     const tab = event.target.closest("[role='tab'], button, a, .ant-tabs-tab, .nav-link, [class*='tab-label'], [class*='tabLabel']");
     const sectionId = myduSectionId(tab?.innerText || tab?.textContent);
     if (!sectionId) return;
+    cacheCurrentSectionFields();
+    resetChecksForSection(sectionId);
     lastMyduSection = sectionId;
     setTemplateSection(sectionId);
+    setTimeout(() => cacheCurrentSectionFields(sectionId), 120);
+    setTimeout(() => cacheCurrentSectionFields(sectionId), 500);
   }
 
   function templateHtml(template) {
@@ -1097,7 +1512,7 @@
     const selectionStart = oldSearch?.selectionStart ?? 0;
     const selectionEnd = oldSearch?.selectionEnd ?? 0;
     renderedView = activeView;
-    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "kato-not-city": "Населённый пункт", "parent-work": "Данные родителя", "parent-unemployed": "Данные родителя", "unt-invalid-certificate": "Сертификат ЕНТ", "no-id": "Документы", "no-certificate": "Документ об образовании", "no-appendix": "Документ об образовании", "relationship": "Документы родителя", "no-unt": "ЕНТ", "no-language-cert": "Сертификат" };
+    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "kato-not-city": "Населённый пункт", "fio-case": "ФИО абитуриента", "parent-fio-case": "ФИО родителя", "wrong-admission-type": "Тип поступления", "wrong-average": "Средний балл", "parent-work": "Данные родителя", "parent-unemployed": "Данные родителя", "unt-invalid-certificate": "Сертификат ЕНТ", "no-id": "Документы", "no-certificate": "Документ об образовании", "no-appendix": "Документ об образовании", "relationship": "Документы родителя", "no-unt": "ЕНТ", "no-language-cert": "Сертификат" };
     const warnings = state.warnings.map((item, index) => `<article class="mdh-warning ${item.level}"><div class="mdh-warning-head"><span class="mdh-warning-icon">${item.level === "danger" ? "!" : "?"}</span><span class="mdh-warning-label">${esc(item.label || warningLabels[item.templateId] || "Формальная проверка")}</span></div><span class="mdh-warning-text">${esc(item.text)}</span><div class="mdh-warning-actions"><button type="button" data-warning-add="${index}">Добавить</button><button type="button" data-warning-ignore="${index}">Игнорировать</button></div></article>`).join("");
     const selected = state.selected.length
       ? state.selected.map((item, index) => `<div class="mdh-picked"><div><b>${index + 1}. ${esc(item.title)}</b><textarea data-picked="${esc(item.id)}">${esc(item.text)}</textarea></div><button type="button" title="Удалить" data-remove="${esc(item.id)}">×</button></div>`).join("")
@@ -1147,6 +1562,15 @@
     panelBody.addEventListener("touchmove", event => event.stopPropagation(), { passive: true });
     const referenceToggle = shadow.querySelector("#mdh-reference-toggle");
     if (referenceToggle) referenceToggle.onclick = () => { referenceCollapsed = !referenceCollapsed; render(); };
+    const ocrRetry = shadow.querySelector("#mdh-ocr-retry");
+    if (ocrRetry) ocrRetry.onclick = () => {
+      if (!documentReview?.cacheKey) return;
+      ocrCache.delete(documentReview.cacheKey);
+      ocrPageStability.delete(documentReview.cacheKey);
+      ocrGeneration += 1;
+      lastDocumentSignature = "";
+      scanDocumentViewer();
+    };
     launch.onclick = () => { state.collapsed = false; render(); scheduleSave(); };
     shadow.querySelector("#mdh-close").onclick = () => { state.collapsed = true; render(); scheduleSave(); };
     shadow.querySelectorAll("[data-view]").forEach(node => node.onclick = () => { state.activeView = node.dataset.view; render(); scheduleSave(); });
@@ -1197,20 +1621,39 @@
       launch: validPosition(savedPosition?.launch)
     };
     state = saved && saved.expiresAt > Date.now() ? { ...freshState(), ...saved.state } : freshState();
+    pageFieldCache = { personal: [], education: [], admission: [], social: [] };
     lastMyduSection = activeMyduSection();
     if (lastMyduSection) state.activeSection = lastMyduSection;
     if (saved && saved.expiresAt <= Date.now()) chrome.storage.local.remove(draftKey);
     root = document.createElement("div"); root.id = "mydu-manager-helper-root"; root.style.all = "initial";
     shadow = root.attachShadow({ mode: "open" }); document.documentElement.appendChild(root);
     render();
+    setTimeout(() => cacheCurrentSectionFields(lastMyduSection), 120);
+  }
+
+  function attachmentDocumentHint(target) {
+    let current = target;
+    for (let depth = 0; current && current !== document.body && depth < 9; depth += 1, current = current.parentElement) {
+      const text = (current.innerText || current.textContent || "").replace(/\s+/g, " ").trim();
+      if (/сумма баллов ент|общий балл ент|обязательные предметы/i.test(text)) return "Сертификат ЕНТ";
+      if (/test report form|номер сертификата|название международн.*сертификат|владени.*иностранн.*язык|ielts/i.test(text)) return "IELTS Test Report Form";
+      if (/номер документа|документ,? удостоверяющ.*личност/i.test(text)) return "Удостоверение личности";
+      if (/приложени[ея].*(аттестат|диплом)|(аттестат|диплом).*приложени[ея]/i.test(text)) return "Приложение к аттестату/диплому";
+      if (/серия (аттестата|диплома)|номер (аттестата|диплома)/i.test(text)) return "Аттестат/диплом";
+      if (/подтверждающ.*родств|свидетельств[оа] о рождении/i.test(text)) return "Свидетельство о рождении";
+      if (text.length > 4200) break;
+    }
+    return "";
   }
 
   function captureAttachmentHint(event) {
     const target = event.target instanceof Element ? event.target.closest("button, a, [role='button']") : null;
     if (!target) return;
     const text = (target.innerText || target.textContent || "").trim();
-    if (!/\.pdf\b|скан-копия|документ,?\s+подтверждающ|сертификат/i.test(text)) return;
-    lastAttachmentHint = text;
+    if (!/\.(?:pdf|png|jpe?g|webp)\b|скан-копия|документ,?\s+подтверждающ|сертификат/i.test(text)) return;
+    ocrGeneration += 1;
+    ocrPageStability.clear();
+    lastAttachmentHint = `${text} ${attachmentDocumentHint(target)}`.trim();
     lastDocumentSignature = "";
     referenceCollapsed = false;
     state.activeView = "checks";
@@ -1226,13 +1669,15 @@
     const id = applicantId();
     if (id === lastApplicantId) {
       syncMyduSection();
+      cacheCurrentSectionFields();
       scanDocumentViewer();
       return;
     }
     clearTimeout(saveTimer);
     if (lastApplicantId && draftKey) await storageSet({ [draftKey]: draftPayload() });
     root?.remove(); root = shadow = null; lastApplicantId = null;
-    documentReview = null; lastDocumentSignature = ""; lastAttachmentHint = ""; referenceCollapsed = false; lastMyduSection = null;
+    ocrGeneration += 1; ocrCache.clear(); ocrPageStability.clear();
+    documentReview = null; lastDocumentSignature = ""; lastAttachmentHint = ""; referenceCollapsed = false; lastMyduSection = null; pageFieldCache = { personal: [], education: [], admission: [], social: [] };
     if (id) await mount();
   }, 1000);
   mount();
