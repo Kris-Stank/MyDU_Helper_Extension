@@ -1,0 +1,21 @@
+MyDU Manager Helper includes the following third-party components:
+
+1. Tesseract.js 7.0.0
+   Copyright contributors to naptha/tesseract.js
+   License: Apache License 2.0
+   Source: https://github.com/naptha/tesseract.js
+
+2. tesseract.js-core 7.0.0
+   Copyright contributors to naptha/tesseract.js-core
+   License: Apache License 2.0
+   Source: https://github.com/naptha/tesseract.js-core
+
+3. @tesseract.js-data/eng 1.0.0
+   @tesseract.js-data/kaz 1.0.0
+   @tesseract.js-data/rus 1.0.0
+   Author: Balearica and contributors
+   License: MIT
+   Source: https://github.com/naptha/tessdata
+
+Copies of the applicable Apache 2.0 and MIT license texts are included in
+the licenses directory of the extension package.

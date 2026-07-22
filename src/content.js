@@ -10,18 +10,19 @@
     peek: chrome.runtime.getURL("src/assets/mascot-peek.png")
   };
   const LEGACY_TEMPLATES = [
-    { id: "photo-invalid", group: "Персональные сведения", title: "Фото недействительное", text: "Фото недействительное. Пожалуйста, загрузите фото 3×4 в корректном формате: лицо должно быть хорошо видно, фон нейтральный, фото без посторонних предметов и без сильной обработки." },
-    { id: "kato-not-city", group: "Персональные сведения", title: "Населённый пункт указан не городом", text: "В поле населённого пункта укажите город в корректном формате. Пожалуйста, выберите населённый пункт, соответствующий адресу прописки/проживания." },
+    { id: "photo-invalid", group: "Персональные сведения", title: "Фото недействительное", text: "Фото недействительное. Пожалуйста, загрузите фото 3×4 в корректном формате: лицо должно быть хорошо видно, фон нейтральный, фото без посторонних предметов и в хорошем качестве." },
+    { id: "kato-not-city", group: "Персональные сведения", title: "Не указан конкретный населённый пункт", text: "Укажите населённый пункт в корректном формате: именно город/населённый пункт, например: «г. Актобе». Не выбирайте значение формата «Г.А.»" },
     { id: "kato-address", group: "Персональные сведения", title: "КАТО не совпадает с адресом", text: "Проверьте соответствие населённого пункта (КАТО) и указанного адреса прописки/проживания. Они должны относиться к одному населённому пункту." },
-    { id: "address-incomplete", group: "Персональные сведения", title: "Адрес прописки/проживания неполный", text: "Укажите полный адрес прописки и проживания: город/населённый пункт, улицу или район, номер дома и номер квартиры (если это не частный дом)." },
+    { id: "address-incomplete", group: "Персональные сведения", title: "Адрес указан неверно", text: "Исправьте адрес и укажите его в формате: ул./пр-т/ш./мкр. [название], д. [номер дома], кв. [номер квартиры]. Для частного дома номер квартиры не указывается." },
     { id: "id-date", group: "Документы", title: "Дата выдачи удостоверения", text: "Проверьте дату выдачи удостоверения личности и укажите её корректно согласно документу." },
     { id: "fio-document", group: "Персональные сведения", title: "ФИО не совпадает с документом", text: "Проверьте ФИО. Данные в заявлении должны полностью совпадать с удостоверением личности." },
     { id: "fio-case", group: "Персональные сведения", title: "ФИО написано не тем регистром", text: "Исправьте регистр ФИО: первая буква должна быть заглавной, остальные — строчными." },
+    { id: "missing-patronymic", group: "Персональные сведения", title: "Не указано отчество", text: "Укажите отчество абитуриента в заявлении так, как оно указано в документе, удостоверяющем личность." },
     { id: "no-id", group: "Документы", title: "Нет удостоверения личности", text: "Прикрепите скан-копию удостоверения личности абитуриента в хорошем качестве." },
     { id: "id-quality", group: "Документы", title: "Удостоверение плохого качества", text: "Загрузите чёткую скан-копию удостоверения личности. Все данные и фотография на документе должны быть читаемыми." },
     { id: "wrong-id", group: "Документы", title: "Не тот документ", text: "В разделе документов должно быть прикреплено удостоверение личности самого абитуриента. Пожалуйста, замените файл на корректный." },
     { id: "no-parent", group: "Родители/Лица, заменяющие родителей", title: "Нет данных родителя", text: "Заполните полностью данные хотя бы одного родителя или законного представителя." },
-    { id: "parent-work", group: "Родители/Лица, заменяющие родителей", title: "Место работы родителя", text: "Укажите место работы родителя полностью. Не используйте сокращение из одной-двух букв." },
+    { id: "parent-work", group: "Родители/Лица, заменяющие родителей", title: "Место работы родителя", text: "Заполните поле «Место работы». Укажите место работы родителя полностью или напишите «Нет», если родитель не работает. Не используйте сокращения из одной-двух букв." },
     { id: "parent-unemployed", group: "Родители/Лица, заменяющие родителей", title: "Родитель не работает", text: "Если родитель не работает, укажите это полностью в поле «Место работы»." },
     { id: "relationship", group: "Родители/Лица, заменяющие родителей", title: "Документ о родстве", text: "Прикрепите свидетельство о рождении абитуриента как документ, подтверждающий родство." },
     { id: "school-name", group: "Сведения о предыдущем образовании", title: "Название образовательного учреждения", text: "Проверьте и укажите корректное наименование образовательного учреждения согласно аттестату/диплому." },
@@ -45,13 +46,18 @@
 
   const TEMPLATES = [
     { id: "photo-invalid", group: "Персональные сведения", title: "Фото недействительное", text: "Фото недействительное. Пожалуйста, загрузите фото 3×4 в корректном формате: лицо должно быть хорошо видно, фон нейтральный, фото без посторонних предметов и без сильной обработки." },
-    { id: "kato-not-city", group: "Персональные сведения", title: "Населённый пункт указан не городом", text: "Укажите населённый пункт в корректном формате: именно город/населённый пункт, например: «г. Актобе». Не выбирайте значение формата «Г.А.»" },
+    { id: "kato-not-city", group: "Персональные сведения", title: "Не указан конкретный населённый пункт", text: "Укажите населённый пункт в корректном формате: именно город/населённый пункт, например: «г. Актобе». Не выбирайте значение формата «Г.А.»" },
     { id: "kato-address", group: "Персональные сведения", title: "КАТО не совпадает с адресом", text: "Проверьте населённый пункт прописки/проживания. Он должен совпадать с адресом, который указан в поле «Адрес прописки» / «Адрес проживания»." },
-    { id: "address-incomplete", group: "Персональные сведения", title: "Адрес прописки/проживания неполный", text: "Пропишите полностью «Адрес проживания» и «Адрес прописки»: улица, дом, квартира." },
+    { id: "address-incomplete", group: "Персональные сведения", title: "Адрес указан неверно", text: "Исправьте адрес и укажите его в формате: ул./пр-т/ш./мкр. [название], д. [номер дома], кв. [номер квартиры]. Для частного дома номер квартиры не указывается." },
     { id: "id-date", group: "Персональные сведения", title: "Дата выдачи удостоверения", text: "Введите корректную дату выдачи документа, удостоверяющего личность. Дата должна совпадать с данными в удостоверении личности." },
     { id: "fio-document", group: "Персональные сведения", title: "ФИО не совпадает с документом", text: "Проверьте ФИО в заявлении. Данные должны быть указаны точно так же, как в документе, удостоверяющем личность." },
     { id: "fio-case", group: "Персональные сведения", title: "ФИО написано не тем регистром", text: "Пожалуйста, пишите ФИО с заглавной буквы: первая буква большая, остальные маленькие." },
+    { id: "missing-patronymic", group: "Персональные сведения", title: "Не указано отчество", text: "Укажите отчество абитуриента в заявлении так, как оно указано в документе, удостоверяющем личность." },
     { id: "birth-date", group: "Персональные сведения", title: "Дата рождения", text: "Проверьте дату рождения. Она должна совпадать с данными в документе, удостоверяющем личность." },
+    { id: "iin-document", group: "Персональные сведения", title: "ИИН не совпадает с документом", text: "Проверьте ИИН абитуриента. ИИН в заявлении должен полностью совпадать с ИИН, указанным в документе, удостоверяющем личность." },
+    { id: "id-number", group: "Документы", title: "Номер удостоверения личности", text: "Проверьте номер удостоверения личности. Номер в заявлении должен полностью совпадать с номером, указанным в документе." },
+    { id: "id-expiry", group: "Документы", title: "Срок действия удостоверения", text: "Проверьте срок действия удостоверения личности и укажите его в заявлении точно так же, как в документе." },
+    { id: "id-authority", group: "Документы", title: "Орган, выдавший удостоверение", text: "Проверьте поле «Орган, выдавший документ». Значение в заявлении должно соответствовать данным удостоверения личности." },
     { id: "no-id", group: "Документы", title: "Нет удостоверения личности", text: "Загрузите скан-копию документа, удостоверяющего личность, в разделе «Документы»." },
     { id: "id-quality", group: "Документы", title: "Удостоверение плохого качества", text: "Загрузите скан-копию документа, удостоверяющего личность, в хорошем качестве. Все данные на документе должны быть полностью читаемыми." },
     { id: "wrong-id", group: "Документы", title: "Не тот документ", text: "В разделе «Документы» необходимо загрузить именно документ, удостоверяющий личность. Проверьте прикреплённый файл и замените его на корректный." },
@@ -61,8 +67,10 @@
     { id: "mother-surname", group: "Родители/Лица, заменяющие родителей", title: "Фамилия матери", text: "Укажите корректную фамилию матери. Данные должны совпадать с документами." },
     { id: "mother-name-change", group: "Родители/Лица, заменяющие родителей", title: "Смена фамилии матери", text: "Если у матери была смена фамилии, прикрепите свидетельство о заключении брака вместе с вашим свидетельством о рождении одним файлом." },
     { id: "parent-fio-case", group: "Родители/Лица, заменяющие родителей", title: "ФИО родителя написано не тем регистром", text: "Пожалуйста, пишите ФИО родителя/законного представителя с заглавной буквы: первая буква большая, остальные маленькие." },
-    { id: "parent-address", group: "Родители/Лица, заменяющие родителей", title: "Адрес родителя", text: "Укажите полный адрес проживания родителя/законного представителя: улица, дом, квартира." },
-    { id: "parent-work", group: "Родители/Лица, заменяющие родителей", title: "Место работы родителя", text: "Укажите место работы родителя/законного представителя." },
+    { id: "parent-name-missing", group: "Родители/Лица, заменяющие родителей", title: "ФИО родителя заполнено не полностью", text: "Заполните ФИО родителя полностью в соответствии со свидетельством о рождении. Укажите фамилию, имя и отчество, если они присутствуют в документе." },
+    { id: "parent-fio-document", group: "Родители/Лица, заменяющие родителей", title: "ФИО родителя не совпадает со свидетельством", text: "Проверьте ФИО родителя или законного представителя. Данные в заявлении должны полностью совпадать с данными, указанными в свидетельстве о рождении." },
+    { id: "parent-address", group: "Родители/Лица, заменяющие родителей", title: "Адрес родителя указан неверно", text: "Исправьте адрес родителя/лица, заменяющего родителя и укажите его в формате: ул./пр-т/ш./мкр. [название], д. [номер дома], кв. [номер квартиры]. Для частного дома номер квартиры не указывается." },
+    { id: "parent-work", group: "Родители/Лица, заменяющие родителей", title: "Место работы родителя", text: "Заполните поле «Место работы». Укажите место работы родителя/законного представителя полностью или напишите «Нет», если он не работает." },
     { id: "parent-unemployed", group: "Родители/Лица, заменяющие родителей", title: "Родитель не работает", text: "Если родитель/законный представитель не работает, в поле «Место работы» необходимо написать «Нет»." },
     { id: "relationship", group: "Родители/Лица, заменяющие родителей", title: "Документ о родстве", text: "Загрузите скан-копию документа, подтверждающего родство или законное представительство, в правильном формате. В этом поле необходимо загрузить именно ваше свидетельство о рождении." },
     { id: "school-name", group: "Сведения о предыдущем образовании", title: "Название образовательного учреждения", text: "Укажите наименование образовательного учреждения в точности так, как оно указано в аттестате/дипломе." },
@@ -70,6 +78,7 @@
     { id: "school-country", group: "Сведения о предыдущем образовании", title: "Страна образовательного учреждения", text: "Проверьте страну образовательного учреждения и укажите её корректно согласно документу об образовании." },
     { id: "education-data-mismatch", group: "Сведения о предыдущем образовании", title: "Данные не совпадают с документом", text: "Проверьте сведения о предыдущем образовании. Все данные должны совпадать с аттестатом/дипломом и приложением к нему." },
     { id: "series-number", group: "Сведения о дипломе", title: "Серия и номер перепутаны", text: "Укажите верно данные по аттестату/диплому: серия — это буквы, например «ЖОБ» или «BT», номер — это цифры рядом с этими буквами." },
+    { id: "series-uppercase", group: "Сведения о дипломе", title: "Серия указана строчными буквами", text: "Укажите серию аттестата/диплома заглавными буквами, например «ЖОБ» или «BT»." },
     { id: "education-number", group: "Сведения о дипломе", title: "Номер аттестата/диплома", text: "Введите корректный номер аттестата/диплома. Номер должен состоять из цифр, указанных рядом с серией документа." },
     { id: "education-date", group: "Сведения о дипломе", title: "Дата выдачи аттестата/диплома", text: "Введите корректную дату выдачи аттестата/диплома. Дата должна совпадать с датой, указанной в документе." },
     { id: "no-certificate", group: "Сведения о дипломе", title: "Нет скан-копии аттестата/диплома", text: "Загрузите скан-копию аттестата/диплома в соответствующем разделе." },
@@ -97,6 +106,249 @@
     { id: "grant-august", group: "Сообщения: грант/иностранцы", title: "Грант — заявку подавать в августе", text: "Если Вы планируете участвовать в конкурсе на государственный образовательный грант, заявление необходимо подать не сейчас, а после публикации результатов конкурса грантов — в августе. НЕ УДАЛЯЙТЕ И НЕ ОТМЕНЯЙТЕ ЗАЯВЛЕНИЕ, А ПРОСТО СОХРАНИТЕ ЕГО В ТЕКУЩЕМ СТАТУСЕ «ОТПРАВЛЕНО НА ДОРАБОТКУ», чтобы после результатов конкурса Вы смогли снова подать заявление." },
     { id: "foreign-interview", group: "Сообщения: грант/иностранцы", title: "Иностранцы — собеседование для платного поступления", text: "Для поступления на платной основе иностранным абитуриентам необходимо сначала подать заявку на собеседование через следующую форму:\n\nhttps://docs.google.com/forms/d/e/1FAIpQLSfJcrouK6xXkGc53kseteWyV3rKrq-nDa-8VQWIQOJF3wDC9Q/viewform\n\nПожалуйста, заполните форму и загрузите необходимые документы в виде чётких цветных скан-копий высокого качества.\n\nВы сможете подать заявление в MyDU только после успешного прохождения собеседования. Пока, пожалуйста, не удаляйте и не отменяйте текущую заявку. Просто оставьте её сохранённой как есть.\n\nЕсли Вы подали заявку на грантовую программу Bolashak для иностранных граждан, пожалуйста, сначала дождитесь результатов и подавайте заявление только после получения окончательного решения.\n\nЕсли у Вас гражданство не Республики Казахстан, но по национальности Вы казах/казашка и у Вас есть статус «Кандас», Вы можете участвовать в конкурсе государственных грантов на основе ЕНТ. После участия в конкурсе Вы сможете подать заявление в MyDU." }
   ];
+
+  const TEMPLATE_TRANSLATIONS = {
+    "photo-invalid": {
+      kz: "Фотосурет жарамсыз. 3×4 фотосуретті дұрыс форматта жүктеңіз: бет анық көрінуі, фон бейтарап, фотосуретте бөгде заттар болмауы және ол қатты өңделмеуі тиіс.",
+      en: "The photo is invalid. Please upload a 3×4 photo in the correct format: the face must be clearly visible, the background must be neutral, and the photo must not contain foreign objects or excessive editing."
+    },
+    "kato-not-city": {
+      kz: "Елді мекенді дұрыс форматта көрсетіңіз: нақты қала немесе елді мекен, мысалы, «Ақтөбе қ.». «Г.А.» форматындағы мәнді таңдамаңыз.",
+      en: "Enter the locality in the correct format: specify the actual city or settlement, for example, “Aktobe”. Do not select a value in the “Г.А.” format."
+    },
+    "kato-address": {
+      kz: "Тіркелген/тұратын елді мекенді тексеріңіз. Ол «Тіркелген мекенжайы» / «Тұратын мекенжайы» өрісінде көрсетілген мекенжайға сәйкес келуі тиіс.",
+      en: "Check the locality of registration/residence. It must match the address entered in the “Registration address” / “Residential address” field."
+    },
+    "address-incomplete": {
+      kz: "Мекенжайды түзетіп, мына форматта көрсетіңіз: көш./даңғ./тасж./ш/а [атауы], үй [нөмірі], пәт. [нөмірі]. Жеке үй үшін пәтер нөмірі көрсетілмейді.",
+      en: "Correct the address and enter it in the following format: street/avenue/highway/microdistrict [name], building [number], apartment [number]. Do not enter an apartment number for a private house."
+    },
+    "id-date": {
+      kz: "Жеке басты куәландыратын құжаттың берілген күнін дұрыс енгізіңіз. Күн жеке куәліктегі деректерге сәйкес келуі тиіс.",
+      en: "Enter the correct issue date of the identity document. The date must match the information on the identity card."
+    },
+    "fio-document": {
+      kz: "Өтініштегі Т.А.Ә.-ні тексеріңіз. Деректер жеке басты куәландыратын құжатта көрсетілгендей дәл жазылуы тиіс.",
+      en: "Check the applicant’s full name in the application. It must be entered exactly as shown in the identity document."
+    },
+    "fio-case": {
+      kz: "Т.А.Ә.-ні бас әріптен бастап жазыңыз: бірінші әріп бас, қалғандары кіші әріппен жазылуы тиіс.",
+      en: "Please write the full name using the correct capitalization: the first letter must be uppercase and the remaining letters lowercase."
+    },
+    "missing-patronymic": {
+      kz: "Өтініште талапкердің әкесінің атын жеке басты куәландыратын құжатта көрсетілгендей жазыңыз.",
+      en: "Enter the applicant’s patronymic in the application exactly as shown in the identity document."
+    },
+    "birth-date": {
+      kz: "Туған күнін тексеріңіз. Ол жеке басты куәландыратын құжаттағы деректерге сәйкес келуі тиіс.",
+      en: "Check the date of birth. It must match the information in the identity document."
+    },
+    "iin-document": {
+      kz: "Талапкердің ЖСН-ін тексеріңіз. Өтініштегі ЖСН жеке басты куәландыратын құжатта көрсетілген ЖСН-мен толық сәйкес келуі тиіс.",
+      en: "Check the applicant’s IIN. The IIN in the application must exactly match the IIN shown in the identity document."
+    },
+    "id-number": {
+      kz: "Жеке куәліктің нөмірін тексеріңіз. Өтініштегі нөмір құжатта көрсетілген нөмірмен толық сәйкес келуі тиіс.",
+      en: "Check the identity card number. The number in the application must exactly match the number shown in the document."
+    },
+    "id-expiry": {
+      kz: "Жеке куәліктің жарамдылық мерзімін тексеріп, оны өтініште құжаттағыдай дәл көрсетіңіз.",
+      en: "Check the identity card expiry date and enter it in the application exactly as shown in the document."
+    },
+    "id-authority": {
+      kz: "«Құжатты берген орган» өрісін тексеріңіз. Өтініштегі мән жеке куәліктегі деректерге сәйкес келуі тиіс.",
+      en: "Check the “Issuing authority” field. The value in the application must match the information in the identity document."
+    },
+    "no-id": {
+      kz: "«Құжаттар» бөліміне жеке басты куәландыратын құжаттың скан-көшірмесін жүктеңіз.",
+      en: "Upload a scanned copy of the identity document in the “Documents” section."
+    },
+    "id-quality": {
+      kz: "Жеке басты куәландыратын құжаттың сапалы скан-көшірмесін жүктеңіз. Құжаттағы барлық дерек толық оқылатын болуы тиіс.",
+      en: "Upload a high-quality scanned copy of the identity document. All information in the document must be fully legible."
+    },
+    "wrong-id": {
+      kz: "«Құжаттар» бөліміне дәл жеке басты куәландыратын құжатты жүктеу қажет. Тіркелген файлды тексеріп, дұрыс файлмен ауыстырыңыз.",
+      en: "The “Documents” section must contain an identity document. Check the attached file and replace it with the correct document."
+    },
+    "file-wont-open": {
+      kz: "Тіркелген файл ашылмайды немесе дұрыс көрсетілмейді. Құжатты дұрыс форматта қайта жүктеңіз.",
+      en: "The attached file cannot be opened or is displayed incorrectly. Please upload the document again in the correct format."
+    },
+    "doc-cropped": {
+      kz: "Құжатты қайта жүктеңіз. Файл толық болуы тиіс: жиектері қиылмаған, деректері жабылмаған және бұлыңғыр бөліктері болмауы керек.",
+      en: "Upload the document again. The file must be complete, with no cropped edges, covered information, or blurred areas."
+    },
+    "no-parent": {
+      kz: "«Ата-аналар / оларды алмастыратын тұлғалар» бөлімін толтырып, кемінде бір ата-ананы немесе заңды өкілді көрсетіңіз.",
+      en: "Complete the “Parents / Legal representatives” section and provide details for at least one parent or legal representative."
+    },
+    "mother-surname": {
+      kz: "Анасының тегін дұрыс көрсетіңіз. Деректер құжаттарға сәйкес келуі тиіс.",
+      en: "Enter the mother’s correct surname. The information must match the documents."
+    },
+    "mother-name-change": {
+      kz: "Егер анасының тегі өзгерген болса, неке қию туралы куәлікті өзіңіздің туу туралы куәлігіңізбен бірге бір файлға тіркеңіз.",
+      en: "If the mother changed her surname, attach the marriage certificate together with your birth certificate as a single file."
+    },
+    "parent-fio-case": {
+      kz: "Ата-ананың/заңды өкілдің Т.А.Ә.-н бас әріптен бастап жазыңыз: бірінші әріп бас, қалғандары кіші әріппен жазылуы тиіс.",
+      en: "Please write the parent’s/legal representative’s full name using the correct capitalization: the first letter must be uppercase and the remaining letters lowercase."
+    },
+    "parent-name-missing": {
+      kz: "Ата-ананың Т.А.Ә.-н туу туралы куәлікке сәйкес толық толтырыңыз. Құжатта бар болса, тегін, атын және әкесінің атын көрсетіңіз.",
+      en: "Enter the parent’s full name exactly as shown on the birth certificate. Include the surname, first name, and patronymic if they appear in the document."
+    },
+    "parent-fio-document": {
+      kz: "Ата-ананың немесе заңды өкілдің Т.А.Ә.-н тексеріңіз. Өтініштегі деректер туу туралы куәлікте көрсетілген деректермен толық сәйкес келуі тиіс.",
+      en: "Check the parent’s or legal representative’s full name. The information in the application must exactly match the birth certificate."
+    },
+    "parent-address": {
+      kz: "Мекенжайды түзетіп, мына форматта көрсетіңіз: көш./даңғ./тасж./ш/а [атауы], үй [нөмірі], пәт. [нөмірі]. Жеке үй үшін пәтер нөмірі көрсетілмейді.",
+      en: "Correct the address and enter it in the following format: street/avenue/highway/microdistrict [name], building [number], apartment [number]. Do not enter an apartment number for a private house."
+    },
+    "parent-work": {
+      kz: "«Жұмыс орны» өрісін толтырыңыз. Ата-ананың/заңды өкілдің жұмыс орнын толық көрсетіңіз немесе жұмыс істемесе, «Жоқ» деп жазыңыз.",
+      en: "Complete the “Place of employment” field. Enter the parent’s/legal representative’s full place of employment, or enter “No” if they are not employed."
+    },
+    "parent-unemployed": {
+      kz: "Егер ата-ана/заңды өкіл жұмыс істемесе, «Жұмыс орны» өрісіне «Жоқ» деп жазу қажет.",
+      en: "If the parent/legal representative is not employed, enter “No” in the “Place of employment” field."
+    },
+    "relationship": {
+      kz: "Туыстықты немесе заңды өкілдікті растайтын құжаттың скан-көшірмесін дұрыс форматта жүктеңіз. Бұл өріске дәл өзіңіздің туу туралы куәлігіңізді жүктеу қажет.",
+      en: "Upload a scanned copy of the document confirming kinship or legal representation in the correct format. This field must contain your own birth certificate."
+    },
+    "school-name": {
+      kz: "Білім беру ұйымының атауын аттестатта/дипломда көрсетілгендей дәл жазыңыз.",
+      en: "Enter the name of the educational institution exactly as shown on the certificate/diploma."
+    },
+    "school-city": {
+      kz: "Білім беру ұйымының елді мекенін дұрыс қалаға/елді мекенге ауыстырыңыз, мысалы, «Ақтөбе қ.». «Г.А.» форматындағы мәнді таңдамаңыз.",
+      en: "Replace the educational institution’s locality with the correct city/settlement, for example, “Aktobe”. Do not select a value in the “Г.А.” format."
+    },
+    "school-country": {
+      kz: "Білім беру ұйымының елін тексеріп, білім туралы құжатқа сәйкес дұрыс көрсетіңіз.",
+      en: "Check the country of the educational institution and enter it correctly according to the education document."
+    },
+    "education-data-mismatch": {
+      kz: "Алдыңғы білім туралы мәліметтерді тексеріңіз. Барлық дерек аттестатқа/дипломға және оның қосымшасына сәйкес келуі тиіс.",
+      en: "Check the previous education details. All information must match the certificate/diploma and its transcript."
+    },
+    "series-number": {
+      kz: "Аттестат/диплом деректерін дұрыс көрсетіңіз: серия — әріптер, мысалы, «ЖОБ» немесе «BT», ал нөмір — осы әріптердің жанындағы цифрлар.",
+      en: "Enter the certificate/diploma details correctly: the series consists of letters, for example, “ЖОБ” or “BT”, and the number consists of the digits next to those letters."
+    },
+    "series-uppercase": {
+      kz: "Аттестат/диплом сериясын бас әріптермен көрсетіңіз, мысалы, «ЖОБ» немесе «BT».",
+      en: "Enter the certificate/diploma series in uppercase letters, for example, “ЖОБ” or “BT”."
+    },
+    "education-number": {
+      kz: "Аттестаттың/дипломның дұрыс нөмірін енгізіңіз. Нөмір құжат сериясының жанында көрсетілген цифрлардан тұруы тиіс.",
+      en: "Enter the correct certificate/diploma number. It must consist of the digits shown next to the document series."
+    },
+    "education-date": {
+      kz: "Аттестаттың/дипломның берілген күнін дұрыс енгізіңіз. Күн құжатта көрсетілген күнмен сәйкес келуі тиіс.",
+      en: "Enter the correct issue date of the certificate/diploma. The date must match the date shown in the document."
+    },
+    "no-certificate": {
+      kz: "Тиісті бөлімге аттестаттың/дипломның скан-көшірмесін жүктеңіз.",
+      en: "Upload a scanned copy of the certificate/diploma in the appropriate section."
+    },
+    "no-appendix": {
+      kz: "Аттестатқа/дипломға қосымшаның скан-көшірмесін бөлек жүктеңіз.",
+      en: "Upload a separate scanned copy of the transcript to the certificate/diploma."
+    },
+    "separate-files": {
+      kz: "Аттестаттың/дипломның скан-көшірмесін және қосымшаның скан-көшірмесін бөлек жүктеңіз: аттестат/диплом — өз өрісіне, қосымша — өз өрісіне.",
+      en: "Upload the scanned certificate/diploma and its transcript separately: the certificate/diploma in its field and the transcript in its own field."
+    },
+    "average-grade": {
+      kz: "Аттестаттың/дипломның орташа балын енгізіңіз. Орташа балды есептеу үшін бағалар санын енгізіп, «Есептеу» түймесін басыңыз.",
+      en: "Enter the average grade from the certificate/diploma. To calculate it, enter the number of grades and click “Calculate”."
+    },
+    "grade-count": {
+      kz: "Аттестатқа/дипломға қосымшадағы бағалардың дұрыс санын енгізіңіз.",
+      en: "Enter the correct number of grades from the certificate/diploma transcript."
+    },
+    "wrong-average": {
+      kz: "Қосымшадағы бағаларға сәйкес дұрыс орташа балды көрсетіңіз. Бағалар санын тексеріп, «Есептеу» түймесін басыңыз.",
+      en: "Enter the correct average grade based on the transcript. Check the number of grades and click “Calculate”."
+    },
+    "certificate-quality": {
+      kz: "Аттестаттың/дипломның және қосымшаның сапалы скан-көшірмелерін жүктеңіз. Барлық дерек толық оқылатын болуы тиіс.",
+      en: "Upload high-quality scanned copies of the certificate/diploma and its transcript. All information must be fully legible."
+    },
+    "payment-form": {
+      kz: "Төлем нысанын тексеріп, дұрыс нұсқаны таңдаңыз: «Ақылы» немесе «Тегін (грант)».",
+      en: "Check the payment type and select the correct option: “Tuition-based” or “Free (grant)”."
+    },
+    "gop-op": {
+      kz: "Таңдалған білім беру бағдарламалары тобын және білім беру бағдарламасын тексеріңіз. Олар таңдалған оқу бағытына сәйкес келуі тиіс.",
+      en: "Check the selected group of educational programs and the educational program. They must correspond to the selected field of study."
+    },
+    "dormitory": {
+      kz: "«Жатақхана қажеттілігі» өрісін тексеріп, дұрыс нұсқаны таңдаңыз.",
+      en: "Check the “Need for accommodation” field and select the correct option."
+    },
+    "no-unt": {
+      kz: "ҰБТ сертификатының скан-көшірмесін «ҰБТ» / «Оқуға түсу туралы мәліметтер» бөліміне тіркеңіз.",
+      en: "Attach a scanned copy of the UNT certificate in the “UNT” / “Admission information” section."
+    },
+    "unt-not-requested": {
+      kz: "«ҰБТ нәтижелерін сұрату» түймесін басып, деректердің жүйеден жүктелуін күтіңіз, содан кейін ҰБТ сертификатының скан-көшірмесін тіркеңіз.",
+      en: "Click “Request UNT results”, wait for the data to load from the system, and then attach a scanned copy of the UNT certificate."
+    },
+    "wrong-unt": {
+      kz: "«ҰБТ» бөліміне дәл ҰБТ сертификатының скан-көшірмесін тіркеу қажет. Жүктелген файлды тексеріп, дұрыс файлмен ауыстырыңыз.",
+      en: "The “UNT” section must contain a scanned copy of the UNT certificate. Check the uploaded file and replace it with the correct one."
+    },
+    "unt-threshold": {
+      kz: "Сіздің ҰБТ нәтижеңіз пәндік шекті балдан өтпейді. ҰБТ-ны қайта тапсырып, әр міндетті және бейіндік пән бойынша ең төменгі өту балын жинау қажет.",
+      en: "Your UNT result does not meet the subject score threshold. You must retake the UNT and obtain the minimum passing score in every compulsory and specialized subject."
+    },
+    "unt-invalid-certificate": {
+      kz: "Сіздің ҰБТ сертификатыңыз жарамсыз: міндетті пәндер бойынша ең төменгі шекке жетпеген. Қазақстан тарихынан кемінде 5 балл, оқу сауаттылығы мен математикалық сауаттылықтан кемінде 3 балл жинау қажет. Белгіленген ең төменгі нәтижелерден төмен емес жарамды ҰБТ сертификатын ұсыныңыз.",
+      en: "Your UNT certificate is invalid because the minimum threshold for compulsory subjects has not been met. You must score at least 5 points in the History of Kazakhstan and at least 3 points in Reading Literacy and Mathematical Literacy. Submit a valid UNT certificate with results no lower than the required minimums."
+    },
+    "math-literacy-2": {
+      kz: "Жалпы балыңыз ең төменгі шектен жоғары, бірақ математикалық сауаттылықтан 2 балл жиналған. Математикалық сауаттылық бойынша ең төменгі шек — 3 балл, сондықтан бұл ҰБТ нәтижесі оқуға түсуге жарамайды. ҰБТ-ны қайта тапсыру қажет.",
+      en: "Your total score is above the minimum, but you scored 2 points in Mathematical Literacy. The minimum threshold for Mathematical Literacy is 3 points, so this UNT result is not valid for admission. You must retake the UNT."
+    },
+    "wrong-admission-type": {
+      kz: "«Әңгімелесу» арқылы түсу түрі туыстас мамандық бойынша колледж түлектеріне және шетел азаматтарына қолжетімді. Егер Сіз мектеп бітірген болсаңыз, ҰБТ арқылы түсуді таңдаңыз.",
+      en: "The “Interview” admission type is available to college graduates applying in a related specialty and to foreign citizens. If you graduated from school, select admission through the UNT."
+    },
+    "language-date": {
+      kz: "Шет тілін меңгергенін растайтын халықаралық сертификаттың берілген күнін көрсетіңіз.",
+      en: "Enter the issue date of the international certificate confirming foreign-language proficiency."
+    },
+    "language-number": {
+      kz: "Шет тілін меңгергенін растайтын халықаралық сертификаттың дұрыс нөмірін көрсетіңіз (Test Report Form Number құжаттың төменгі жағында орналасқан).",
+      en: "Enter the correct number of the international foreign-language proficiency certificate (the Test Report Form Number is located at the bottom)."
+    },
+    "no-language-cert": {
+      kz: "Тиісті бөлімге шет тілін меңгергенін растайтын халықаралық сертификаттың скан-көшірмесін тіркеңіз.",
+      en: "Attach a scanned copy of the international foreign-language proficiency certificate in the appropriate section."
+    },
+    "language-quality": {
+      kz: "Шет тілін меңгеру сертификатының сапалы скан-көшірмесін жүктеңіз. Барлық дерек оқылатын болуы тиіс.",
+      en: "Upload a high-quality scanned copy of the foreign-language proficiency certificate. All information must be legible."
+    },
+    "language-accidental": {
+      kz: "Шет тілін меңгеру сертификаты бөлімін тексеріңіз. Егер Сізде халықаралық сертификат болмаса, бұл тармақты таңдамаңыз және бөгде файлдарды тіркемеңіз.",
+      en: "Check the foreign-language proficiency certificate section. If you do not have an international certificate, do not select this option or attach unrelated files."
+    },
+    "grant-august": {
+      kz: "Егер Сіз мемлекеттік білім беру гранты конкурсына қатысуды жоспарласаңыз, өтінішті қазір емес, грант конкурсының нәтижелері жарияланғаннан кейін — тамыз айында беру қажет. ӨТІНІШТІ ЖОЙМАҢЫЗ ЖӘНЕ БАС ТАРТПАҢЫЗ, ОНЫ ТЕК «ПЫСЫҚТАУҒА ЖІБЕРІЛДІ» АҒЫМДАҒЫ МӘРТЕБЕСІНДЕ САҚТАП ҚОЙЫҢЫЗ. Сонда конкурс нәтижелерінен кейін өтінішті қайта бере аласыз.",
+      en: "If you plan to participate in the competition for a state educational grant, submit the application after the grant competition results are published in August, not now. DO NOT DELETE OR CANCEL THE APPLICATION; SIMPLY KEEP IT SAVED WITH THE CURRENT “SENT FOR REVISION” STATUS so that you can submit it again after the competition results are announced."
+    },
+    "foreign-interview": {
+      kz: "Ақылы негізде оқуға түсу үшін шетелдік талапкерлер алдымен келесі нысан арқылы әңгімелесуге өтінім беруі қажет:\n\nhttps://docs.google.com/forms/d/e/1FAIpQLSfJcrouK6xXkGc53kseteWyV3rKrq-nDa-8VQWIQOJF3wDC9Q/viewform\n\nНысанды толтырып, қажетті құжаттарды сапалы, анық түсті скан-көшірмелер түрінде жүктеңіз.\n\nMyDU жүйесінде өтінішті әңгімелесуден сәтті өткеннен кейін ғана бере аласыз. Әзірге ағымдағы өтінімді жоймаңыз және одан бас тартпаңыз. Оны сол күйінде сақтап қойыңыз.\n\nЕгер Сіз шетел азаматтарына арналған Bolashak гранттық бағдарламасына өтінім берген болсаңыз, алдымен нәтижелерді күтіп, өтінішті түпкілікті шешім шыққаннан кейін ғана беріңіз.\n\nЕгер Сіз Қазақстан Республикасының азаматы болмасаңыз, бірақ ұлтыңыз қазақ және «Қандас» мәртебеңіз болса, ҰБТ негізінде мемлекеттік гранттар конкурсына қатыса аласыз. Конкурсқа қатысқаннан кейін MyDU жүйесінде өтініш бере аласыз.",
+      en: "For tuition-based admission, foreign applicants must first apply for an interview using the following form:\n\nhttps://docs.google.com/forms/d/e/1FAIpQLSfJcrouK6xXkGc53kseteWyV3rKrq-nDa-8VQWIQOJF3wDC9Q/viewform\n\nPlease complete the form and upload the required documents as clear, high-quality color scans.\n\nYou will be able to submit an application in MyDU only after successfully passing the interview. For now, please do not delete or cancel the current application; simply keep it saved as it is.\n\nIf you have applied for the Bolashak grant program for foreign citizens, please wait for the results and submit your application only after receiving the final decision.\n\nIf you are not a citizen of the Republic of Kazakhstan but are ethnically Kazakh and have Kandas status, you may participate in the state grant competition based on the UNT. After participating in the competition, you will be able to submit an application in MyDU."
+    }
+  };
 
   const SECTIONS = [
     { id: "personal", label: "Персональные данные", groups: ["Персональные сведения", "Документы", "Родители/Лица, заменяющие родителей"] },
@@ -137,7 +389,7 @@
   }
 
   function freshState() {
-    return { selected: [], custom: "", query: "", activeSection: "personal", activeView: "checks", collapsed: false, warnings: [], checksRun: false, gradeCounts: { 5: "", 4: "", 3: "", 2: "" } };
+    return { selected: [], custom: "", query: "", commentLanguage: "ru", activeSection: "personal", activeView: "checks", collapsed: false, warnings: [], checksRun: false, gradeCounts: { 5: "", 4: "", 3: "", 2: "" } };
   }
 
   function validPosition(value) {
@@ -281,19 +533,23 @@
 
   function inspectAddress(value) {
     const normalized = value.replace(/\s+/g, " ").trim();
-    const hasLetters = /[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]/u.test(normalized);
-    const hasHouseNumber = /(?:^|[\s,])\d+[A-Za-zА-Яа-я]?(?:[\/-]\d+)?(?=\s|,|\.|$)/u.test(normalized);
-    const apartmentMarker = /(?:кв(?:артира)?\.?|пәтер)\s*№?\s*\d+/iu;
-    const hasApartmentWord = /(?:кв(?:артира)?\.?|пәтер)/iu.test(normalized);
-    if (!hasLetters || !hasHouseNumber) return { level: "danger", text: "Адрес заполнен не полностью" };
-    if (hasApartmentWord && !apartmentMarker.test(normalized)) return { level: "danger", text: "Не указан номер квартиры" };
-    if (!apartmentMarker.test(normalized)) return { level: "note", text: "Не указан номер квартиры" };
-    return null;
+    const addressFormat = /^(?:(?:ул\.|пр-т\.?|ш\.|мкр\.)\s+)?[^,]*[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі][^,]*?(?:,\s*(?:д\.?\s*)?|\s+(?:д\.?\s*)?)\d+[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]?(?:[\/-]\d+[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]?)?(?:,\s*(?:кв(?:артира)?\.?|пәтер)\s*№?\s*\d+[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]?)?$/iu;
+    if (addressFormat.test(normalized)) return null;
+    return { level: "danger", text: "Исправьте адрес и укажите его в формате: ул./пр-т/ш./мкр. [название], д. [номер дома], кв. [номер квартиры]. Для частного дома номер квартиры не указывается." };
+  }
+
+  function hasSpecificKatoSettlement(value) {
+    const mainPart = String(value || "").split("(")[0].replace(/^\s*\d+\s*/, "").trim();
+    const settlement = mainPart.match(/^(?:город|г|село|с|пос[её]лок|пос|пс|пгт|п|аул|ауыл|деревня|д|станция|ст)\.?\s*(?<name>[\p{L}][\p{L}\d’'\- ]*)$/iu);
+    if (!settlement?.groups?.name) return false;
+    const name = settlement.groups.name.trim();
+    return /\p{L}/u.test(name) && !/^(?:г\.?\s*а\.?|с\.?\s*о\.?|а\.?\s*о\.?)$/iu.test(name);
   }
 
   function inspectWorkplace(value) {
     const workplace = String(value || "").replace(/\s+/g, " ").trim();
-    if (!workplace || workplace.toLocaleLowerCase("ru-RU") === "нет") return null;
+    if (!workplace) return { templateId: "parent-work", level: "danger", text: "Поле «Место работы» не заполнено. Укажите место работы родителя или напишите «Нет», если родитель не работает" };
+    if (workplace.toLocaleLowerCase("ru-RU") === "нет") return null;
     if (workplace.toLocaleLowerCase("ru-RU") === "нету") return { templateId: "parent-unemployed", level: "warning", text: "В поле «Место работы» укажите «Нет» вместо «Нету»" };
     if (workplace.replace(/[\s.]/g, "").length <= 3) return { templateId: "parent-work", level: "warning", text: "Место работы заполнено слишком коротко" };
     return null;
@@ -353,11 +609,14 @@
     if (series && !/^[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]+$/u.test(series)) {
       results.push({ templateId: "series-number", level: "warning", text: "В серии аттестата/диплома указаны не только буквы" });
     }
+    if (series && /^[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]+$/u.test(series) && series !== series.toUpperCase()) {
+      results.push({ templateId: "series-uppercase", key: "series-uppercase", level: "warning", text: "Серия аттестата/диплома должна быть указана заглавными буквами" });
+    }
     if (number && !/^\d+$/.test(number)) {
       results.push({ templateId: "series-number", level: "warning", text: "В номере аттестата/диплома указаны не только цифры" });
     }
     for (const field of allFields.filter(item => /насел[её]нн.*(кaто|като)|кaто|като/i.test(item.label))) {
-      if (/\bг\.а\./i.test(field.value)) results.push({ templateId: "kato-not-city", level: "warning", text: "В КАТО найдено «Г.А.»" });
+      if (!hasSpecificKatoSettlement(field.value)) results.push({ templateId: "kato-not-city", key: "kato-not-city", level: "warning", text: "В КАТО не указан конкретный населённый пункт перед скобками" });
     }
     let addressWarning = null;
     const addressSeverity = { danger: 3, warning: 2, note: 1 };
@@ -374,6 +633,21 @@
       if (issue) results.push(issue);
     }
     if (activePageSection === "personal") results.push(...nameCaseWarnings(comprehensiveFields));
+    const parentPresenceIssue = parentPresenceWarning(comprehensiveFields);
+    if (parentPresenceIssue) results.push(parentPresenceIssue);
+    if (activePageSection === "personal" && documentReview?.typeId === "identity") {
+      const documentPatronymic = extractIdentityPatronymic(documentReview.recognizedText);
+      const applicationPatronymic = applicationNameData(comprehensiveFields).applicant.find(field => nameFieldKind(field) === "patronymic")?.value || "";
+      if (documentPatronymic && !applicationPatronymic) {
+        results.push({ templateId: "missing-patronymic", key: "missing-patronymic", level: "danger", text: "В удостоверении указано отчество, но в заявлении поле «Отчество» не заполнено" });
+      }
+    }
+    if (activePageSection === "personal" && documentReview?.typeId === "birth") {
+      const parentIssue = missingParentNameParts(documentReview.recognizedText, applicationNameData(comprehensiveFields).parents);
+      if (parentIssue.length) {
+        results.push({ templateId: "parent-name-missing", key: "parent-name-missing", level: "danger", text: `В свидетельстве о рождении указаны данные родителя, отсутствующие в заявлении: ${parentIssue.join(", ")}` });
+      }
+    }
     if (activePageSection === "admission") {
       const admissionIssue = schoolInterviewWarning(comprehensiveFields);
       if (admissionIssue) results.push(admissionIssue);
@@ -397,11 +671,29 @@
     return TEMPLATES.find(template => template.id === id);
   }
 
+  function templateCommentText(template, language = state?.commentLanguage || "ru") {
+    if (!template || language === "ru") return template?.text || "";
+    return TEMPLATE_TRANSLATIONS[template.id]?.[language] || template.text;
+  }
+
+  function setCommentLanguage(language) {
+    if (!state || !["ru", "kz", "en"].includes(language) || state.commentLanguage === language) return;
+    state.commentLanguage = language;
+    state.selected = state.selected.map(item => {
+      if (!item.templateId) return item;
+      const template = selectedTemplate(item.templateId);
+      return template ? { ...item, title: template.title, text: templateCommentText(template, language) } : item;
+    });
+    state.query = "";
+    render();
+    scheduleSave();
+  }
+
   function appendTemplate(id) {
     const template = selectedTemplate(id);
     if (!template) return false;
     if (state.selected.some(item => item.templateId === id)) return true;
-    state.selected.push({ id: `${id}-${Date.now()}-${Math.random()}`, templateId: id, title: template.title, text: template.text });
+    state.selected.push({ id: `${id}-${Date.now()}-${Math.random()}`, templateId: id, title: template.title, text: templateCommentText(template) });
     return true;
   }
 
@@ -551,13 +843,131 @@
     return dateVariants(value).some(variant => documentContainsValue(documentText, variant));
   }
 
+  function normalizeDateValue(value) {
+    const parts = String(value || "").match(/\b(\d{1,2})\s*[.\/-]\s*(\d{1,2})\s*[.\/-]\s*(\d{4})\b/);
+    if (!parts) return "";
+    const day = Number(parts[1]);
+    const month = Number(parts[2]);
+    const year = Number(parts[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) return "";
+    return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+  }
+
+  function extractIeltsDate(documentText) {
+    // The PDF viewer often adds the attachment filename to the extracted text.
+    // IELTS filenames can contain the MyDU date, so they must never participate
+    // in the certificate comparison.
+    const text = String(documentText || "").replace(/[^\s]*\.(?:pdf|png|jpe?g|webp)\b/gi, " ");
+    const datePattern = /\b\d{1,2}\s*[.\/-]\s*\d{1,2}\s*[.\/-]\s*\d{4}\b/g;
+    const candidates = [...text.matchAll(datePattern)]
+      .map(match => ({ index: match.index || 0, value: normalizeDateValue(match[0]) }))
+      .filter(candidate => candidate.value);
+    if (!candidates.length) return "";
+
+    // Prefer the value following the standalone bottom "Date" label. Exclude
+    // "Date of Birth", which appears near the top of every IELTS form.
+    const labels = [...text.matchAll(/\bDATE\b(?!\s+OF\s+BIRTH)/gi)];
+    for (let labelIndex = labels.length - 1; labelIndex >= 0; labelIndex -= 1) {
+      const label = labels[labelIndex];
+      const start = (label.index || 0) + label[0].length;
+      const candidate = candidates.find(item => item.index >= start && item.index - start <= 180);
+      if (candidate) return candidate.value;
+    }
+
+    // Text layers occasionally place the value just before its visual label.
+    // The certificate date is still the last non-birth date on the form.
+    const birthLabels = [...text.matchAll(/\bDATE\s+OF\s+BIRTH\b/gi)];
+    const nonBirthCandidates = candidates.filter(candidate => !birthLabels.some(label => {
+      const start = label.index || 0;
+      return candidate.index >= start && candidate.index - start <= 180;
+    }));
+    return (nonBirthCandidates.at(-1) || candidates.at(-1))?.value || "";
+  }
+
+  function nameFieldKind(field) {
+    if (/транслитом|латиниц/i.test(field.label)) return null;
+    if (/фамилия/i.test(field.label)) return "family";
+    if (/(^|\s)имя(\s|$)/i.test(field.label)) return "first";
+    if (/отчество/i.test(field.label)) return "patronymic";
+    return null;
+  }
+
+  function splitNameFieldGroups(source) {
+    const groups = [];
+    let current = null;
+    for (const field of source) {
+      const kind = nameFieldKind(field);
+      if (!kind) continue;
+      if (kind === "family") {
+        if (current && Object.keys(current).length) groups.push(current);
+        current = {};
+        if (String(field.value || "").trim()) current.family = field;
+        continue;
+      }
+      if (!current) current = {};
+      if (String(field.value || "").trim() && !current[kind]) current[kind] = field;
+    }
+    if (current && Object.keys(current).length) groups.push(current);
+    return groups;
+  }
+
+  function orderedNameFields(group) {
+    return [group?.family, group?.first, group?.patronymic].filter(field => field?.value);
+  }
+
+  function applicationNameData(allFields) {
+    const visible = fields();
+    const raw = fields(true);
+    const activeSection = activeMyduSection() || lastMyduSection;
+    const personalSource = pageFieldCache.personal.length
+      ? pageFieldCache.personal
+      : activeSection === "personal" && splitNameFieldGroups(visible).length ? visible : allFields;
+    const personalGroups = splitNameFieldGroups(personalSource).map(orderedNameFields).filter(group => group.length);
+    const applicant = personalGroups[0] || [];
+    const socialSource = pageFieldCache.social.length
+      ? pageFieldCache.social
+      : activeSection === "social" && splitNameFieldGroups(visible).length ? visible : null;
+    let parents;
+    if (socialSource) {
+      parents = splitNameFieldGroups(socialSource).map(orderedNameFields).filter(group => group.length);
+    } else if (personalGroups.length > 1) {
+      parents = personalGroups.slice(1);
+    } else {
+      const rawGroups = splitNameFieldGroups(raw).map(orderedNameFields).filter(group => group.length);
+      parents = rawGroups.slice(applicant.length ? 1 : 0);
+    }
+    return { applicant, parents };
+  }
+
+  function parentPresenceWarning(allFields) {
+    const activeSection = activeMyduSection() || lastMyduSection;
+    const parentContextAvailable = activeSection === "social"
+      || pageFieldCache.social.length > 0
+      || allFields.some(field => /родител|законн.*представител|опекун|попечител|мать|матер|отец|место работы/i.test(field.label));
+    if (!parentContextAvailable) return null;
+    const hasParent = applicationNameData(allFields).parents.some(group => group.length >= 2);
+    if (hasParent) return null;
+    return {
+      templateId: "no-parent",
+      key: "no-parent",
+      label: "Данные родителя",
+      level: "danger",
+      text: "В заявлении не заполнены данные ни одного родителя или законного представителя"
+    };
+  }
+
   function applicantNameFields(allFields) {
-    const nameFields = allFields.filter(field => /(фамилия|(^|\s)имя(\s|$)|отчество)/i.test(field.label) && !/транслитом/i.test(field.label));
-    return nameFields.slice(0, 3).filter(field => field.value);
+    return applicationNameData(allFields).applicant;
   }
 
   function comparison(label, matched, available = true) {
     return { label, status: !available ? "unknown" : matched ? "match" : "mismatch" };
+  }
+
+  function actionableComparison(label, matched, available, templateId, message) {
+    const result = comparison(label, matched, available);
+    return { ...result, message, templateId: result.status === "match" ? null : templateId };
   }
 
   function hasCorrectNameCase(value) {
@@ -566,13 +976,57 @@
 
   function authorityMatches(documentText, value) {
     if (documentContainsValue(documentText, value)) return true;
-    const normalized = normalizeComparable(value);
-    if (normalized.includes("МВДРК")) return /ҚР\s*ІІМ|МИНИСТЕРСТВО\s+ВНУТРЕННИХ\s+ДЕЛ\s+РК/i.test(documentText);
+    const isKazakhstanInteriorMinistry = source => {
+      const normalized = normalizeComparable(source);
+      return normalized.includes("МВДРК")
+        || normalized.includes("МВДРЕСПУБЛИКИКАЗАХСТАН")
+        || normalized.includes("МИНИСТЕРСТВОВНУТРЕННИХДЕЛРК")
+        || normalized.includes("МИНИСТЕРСТВОВНУТРЕННИХДЕЛРЕСПУБЛИКИКАЗАХСТАН")
+        || normalized.includes("ҚРІІМ")
+        || normalized.includes("КРІІМ")
+        || normalized.includes("ҚРИИМ")
+        || normalized.includes("КРИИМ")
+        || normalized.includes("ІІМҚР")
+        || normalized.includes("ІІМКР")
+        || normalized.includes("ИИМҚР")
+        || normalized.includes("ИИМКР")
+        || normalized.includes("ІШКІІСТЕРМИНИСТРЛІГІ")
+        || normalized.includes("ҚАЗАҚСТАНРЕСПУБЛИКАСЫІШКІІСТЕРМИНИСТРЛІГІ")
+        || normalized.includes("КАЗАКСТАНРЕСПУБЛИКАСЫІШКІІСТЕРМИНИСТРЛІГІ");
+    };
+    if (isKazakhstanInteriorMinistry(value) && isKazakhstanInteriorMinistry(documentText)) return true;
     return false;
+  }
+
+  function extractIdentityPatronymic(documentText) {
+    const lines = String(documentText || "").split(/\r?\n/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const labelPattern = /(?:ОТЧЕСТВО|ӘКЕСІНІҢ\s+АТЫ)/iu;
+    const nextFieldPattern = /^(?:ТУҒАН|ДАТА|ЖЫНЫСЫ|ПОЛ|ЖСН|ИИН|АЗАМАТТЫҒЫ|ГРАЖДАНСТВО)\b/iu;
+    const cleanCandidate = value => {
+      const candidate = String(value || "").replace(/^[\s/:;,.\-]+/, "").trim();
+      if (!candidate || nextFieldPattern.test(candidate) || /\d/.test(candidate)) return "";
+      const words = candidate.match(/[\p{L}'’\-]{2,}/gu) || [];
+      return words.filter(word => !/^(?:ОТЧЕСТВО|ӘКЕСІНІҢ|АТЫ)$/iu.test(word)).join(" ");
+    };
+    for (let index = 0; index < lines.length; index += 1) {
+      const match = lines[index].match(labelPattern);
+      if (!match) continue;
+      const sameLine = cleanCandidate(lines[index].slice((match.index || 0) + match[0].length));
+      if (sameLine) return sameLine;
+      for (let offset = 1; offset <= 2; offset += 1) {
+        const candidate = cleanCandidate(lines[index + offset]);
+        if (candidate) return candidate;
+        if (nextFieldPattern.test(lines[index + offset] || "")) break;
+      }
+    }
+    return "";
   }
 
   function identityComparisons(documentText, allFields) {
     const nameFields = applicantNameFields(allFields);
+    const documentPatronymic = extractIdentityPatronymic(documentText);
+    const applicationPatronymic = nameFields.find(field => nameFieldKind(field) === "patronymic")?.value || "";
+    const missingPatronymic = Boolean(documentPatronymic && !applicationPatronymic);
     const values = {
       iin: findValueByLabel(allFields, /(^|\s)иин(\s|$)/i),
       birth: findValueByLabel(allFields, /дата рождения/i),
@@ -581,33 +1035,137 @@
       expires: findValueByLabel(allFields, /срок действия документа/i),
       authority: findValueByLabel(allFields, /орган,? выдавший документ/i)
     };
+    const fioMatched = !missingPatronymic && nameFields.length > 1 && nameFields.every(field => documentContainsValue(documentText, field.value));
     return [
-      comparison("ФИО", nameFields.length > 1 && nameFields.every(field => documentContainsValue(documentText, field.value)), nameFields.length > 1),
-      comparison("Регистр ФИО в MyDU", nameFields.length > 1 && nameFields.every(field => hasCorrectNameCase(field.value)), nameFields.length > 1),
-      comparison("ИИН", documentContainsValue(documentText, values.iin), Boolean(values.iin)),
-      comparison("Дата рождения", documentContainsDate(documentText, values.birth), Boolean(values.birth)),
-      comparison("Номер удостоверения", documentContainsValue(documentText, values.number), Boolean(values.number)),
-      comparison("Дата выдачи", documentContainsDate(documentText, values.issued), Boolean(values.issued)),
-      comparison("Срок действия", documentContainsDate(documentText, values.expires), Boolean(values.expires)),
-      comparison("Кем выдан", authorityMatches(documentText, values.authority), Boolean(values.authority)),
+      actionableComparison("ФИО", fioMatched, nameFields.length > 1, missingPatronymic ? "missing-patronymic" : "fio-document", missingPatronymic ? "В документе есть отчество, в MyDU не заполнено" : undefined),
+      actionableComparison("Регистр ФИО в MyDU", nameFields.length > 1 && nameFields.every(field => hasCorrectNameCase(field.value)), nameFields.length > 1, "fio-case"),
+      actionableComparison("ИИН", documentContainsValue(documentText, values.iin), Boolean(values.iin), "iin-document"),
+      actionableComparison("Дата рождения", documentContainsDate(documentText, values.birth), Boolean(values.birth), "birth-date"),
+      actionableComparison("Номер удостоверения", documentContainsValue(documentText, values.number), Boolean(values.number), "id-number"),
+      actionableComparison("Дата выдачи", documentContainsDate(documentText, values.issued), Boolean(values.issued), "id-date"),
+      actionableComparison("Срок действия", documentContainsDate(documentText, values.expires), Boolean(values.expires), "id-expiry"),
+      actionableComparison("Кем выдан", authorityMatches(documentText, values.authority), Boolean(values.authority), "id-authority"),
       { label: "Фотография", status: "manual" }
     ];
   }
 
-  function birthCertificateComparisons(documentText, allFields) {
-    const allNameFields = allFields.filter(field => /(фамилия|(^|\s)имя(\s|$)|отчество)/i.test(field.label) && !/транслитом/i.test(field.label) && field.value);
-    const applicant = allNameFields.slice(0, 3);
-    const parentFields = allNameFields.slice(3);
-    const parentGroups = [];
-    for (let index = 0; index < parentFields.length; index += 3) {
-      const group = parentFields.slice(index, index + 3).filter(field => field.value);
-      if (group.length >= 2) parentGroups.push(group);
+  function extractBirthParentNames(documentText) {
+    const lines = String(documentText || "").split(/\r?\n/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const roleOf = line => /(?:ӘКЕСІ|ОТЕЦ)/iu.test(line) ? "father" : /(?:ШЕШЕСІ|МАТЬ)/iu.test(line) ? "mother" : null;
+    const roleWords = /(?:ӘКЕСІ|ОТЕЦ|ШЕШЕСІ|МАТЬ)/giu;
+    const boundary = /^(?:ҰЛТЫ|НАЦИОНАЛЬНОСТЬ|АЗАМАТТЫҒЫ|ГРАЖДАНСТВО|ТІРКЕЛГЕН|МЕСТО РЕГИСТРАЦИИ|БЕРІЛГЕН|ДАТА ВЫДАЧИ)(?:\s|$)/iu;
+    const results = [];
+    const seen = new Set();
+    for (let index = 0; index < lines.length; index += 1) {
+      const role = roleOf(lines[index]);
+      if (!role || seen.has(role)) continue;
+      const parts = [];
+      for (let cursor = index; cursor < Math.min(lines.length, index + 5); cursor += 1) {
+        const cursorRole = roleOf(lines[cursor]);
+        if (cursor > index && cursorRole && cursorRole !== role) break;
+        if (cursor > index && boundary.test(lines[cursor])) break;
+        const cleaned = lines[cursor].replace(roleWords, " ");
+        const words = cleaned.match(/[\p{L}'’\-]{2,}/gu) || [];
+        for (const word of words) {
+          if (!parts.some(existing => normalizeComparable(existing) === normalizeComparable(word))) parts.push(word);
+        }
+      }
+      if (parts.length >= 2) {
+        results.push({ role, parts: parts.slice(0, 3) });
+        seen.add(role);
+      }
     }
+    return results;
+  }
+
+  function fallbackMissingParentParts(documentText, provided) {
+    const lines = String(documentText || "").split(/\r?\n/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const ignored = /^(?:ӘКЕСІ|ОТЕЦ|ШЕШЕСІ|МАТЬ|ҰЛТЫ|НАЦИОНАЛЬНОСТЬ|АЗАМАТТЫҒЫ|ГРАЖДАНСТВО)$/iu;
+    const words = line => (String(line || "").match(/[\p{L}'’\-]{2,}/gu) || []).filter(word => !ignored.test(word));
+    const indexes = field => lines.map((line, index) => documentContainsValue(line, field?.value) ? index : -1).filter(index => index >= 0);
+    const missing = [];
+    const family = provided.family;
+    const first = provided.first;
+    const patronymic = provided.patronymic;
+    if (!patronymic && first && (!family || documentContainsValue(documentText, family.value))) {
+      const firstValue = normalizeComparable(first.value);
+      const found = indexes(first).some(lineIndex => {
+        const lineWords = words(lines[lineIndex]);
+        const firstIndex = lineWords.findIndex(word => normalizeComparable(word) === firstValue);
+        if (firstIndex >= 0 && lineWords.slice(firstIndex + 1).some(word => normalizeComparable(word) !== firstValue)) return true;
+        const nextLine = lines[lineIndex + 1] || "";
+        return !/^(?:ҰЛТЫ|НАЦИОНАЛЬНОСТЬ|АЗАМАТТЫҒЫ|ГРАЖДАНСТВО)(?:\s|$)/iu.test(nextLine) && words(nextLine).length === 1;
+      });
+      if (found) missing.push("отчество родителя");
+    }
+    if (!first && patronymic && (!family || documentContainsValue(documentText, family.value))) {
+      const patronymicValue = normalizeComparable(patronymic.value);
+      const found = indexes(patronymic).some(lineIndex => {
+        const lineWords = words(lines[lineIndex]);
+        const patronymicIndex = lineWords.findIndex(word => normalizeComparable(word) === patronymicValue);
+        return patronymicIndex > 0 && lineWords.slice(0, patronymicIndex).some(word => !family || normalizeComparable(word) !== normalizeComparable(family.value));
+      });
+      if (found) missing.push("имя родителя");
+    }
+    if (!family && first && documentContainsValue(documentText, first.value)) {
+      const firstValue = normalizeComparable(first.value);
+      const found = indexes(first).some(lineIndex => {
+        const lineWords = words(lines[lineIndex]);
+        const firstIndex = lineWords.findIndex(word => normalizeComparable(word) === firstValue);
+        if (firstIndex > 0) return true;
+        const previousWords = words(lines[lineIndex - 1]);
+        return previousWords.length === 1 && (!patronymic || normalizeComparable(previousWords[0]) !== normalizeComparable(patronymic.value));
+      });
+      if (found) missing.push("фамилия родителя");
+    }
+    return missing;
+  }
+
+  function missingParentNameParts(documentText, parentGroups) {
+    const documentParents = extractBirthParentNames(documentText);
+    if (!parentGroups.length) return [];
+    const kindLabels = { family: "фамилия родителя", first: "имя родителя", patronymic: "отчество родителя" };
+    const kinds = ["family", "first", "patronymic"];
+    const missing = [];
+    for (const group of parentGroups) {
+      const provided = Object.fromEntries(group.map(field => [nameFieldKind(field), field]).filter(([kind]) => kind));
+      const values = Object.values(provided).map(field => normalizeComparable(field.value)).filter(Boolean);
+      const matchedDocument = documentParents.find(parent => values.every(value => parent.parts.some(part => normalizeComparable(part) === value)));
+      if (matchedDocument) {
+        for (let index = 0; index < Math.min(3, matchedDocument.parts.length); index += 1) {
+          const kind = kinds[index];
+          if (!provided[kind]) missing.push(kindLabels[kind]);
+        }
+      }
+      if (values.every(value => normalizeComparable(documentText).includes(value))) missing.push(...fallbackMissingParentParts(documentText, provided));
+    }
+    return [...new Set(missing)];
+  }
+
+  function birthCertificateComparisons(documentText, allFields) {
+    const names = applicationNameData(allFields);
+    const applicant = names.applicant;
+    const parentGroups = names.parents.filter(group => group.length >= 2);
+    const birthDate = findValueByLabel(allFields, /дата рождения/i);
     const applicantMatched = applicant.length > 1 && applicant.every(field => documentContainsValue(documentText, field.value));
-    const parentMatched = parentGroups.some(group => group.every(field => documentContainsValue(documentText, field.value)));
+    const missingParentParts = missingParentNameParts(documentText, parentGroups);
+    const parentMatched = parentGroups.some(group => group.every(field => documentContainsValue(documentText, field.value))) && !missingParentParts.length;
+    let parentComparison;
+    if (!parentGroups.length) {
+      parentComparison = { ...comparison("ФИО минимум одного родителя", false), message: "В MyDU не заполнены данные родителя или законного представителя", templateId: "no-parent" };
+    } else {
+      parentComparison = actionableComparison(
+        "ФИО минимум одного родителя",
+        parentMatched,
+        true,
+        missingParentParts.length ? "parent-name-missing" : "parent-fio-document",
+        missingParentParts.length ? `В MyDU не заполнено: ${missingParentParts.join(", ")}` : undefined
+      );
+    }
     return [
-      comparison("ФИО абитуриента", applicantMatched, applicant.length > 1),
-      comparison("ФИО минимум одного родителя", parentMatched, parentGroups.length > 0)
+      actionableComparison("ФИО абитуриента", applicantMatched, applicant.length > 1, "fio-document"),
+      actionableComparison("Дата рождения", documentContainsDate(documentText, birthDate), Boolean(birthDate), "birth-date"),
+      parentComparison
     ];
   }
 
@@ -651,13 +1209,14 @@
     const score = findValueByLabel(certificateFields, /(^|\s)балл(\s|$)|балл.*сертификат/i);
     const family = extractIeltsName(documentText, "family");
     const first = extractIeltsName(documentText, "first");
+    const certificateDate = extractIeltsDate(documentText);
     const overall = extractIeltsOverall(documentText);
     const scoreNumber = Number.parseFloat(String(score).replace(",", "."));
     return [
       ieltsComparison("Фамилия", family, names.family, documentContainsValue(documentText, names.family)),
       ieltsComparison("Имя", first, names.first, documentContainsValue(documentText, names.first)),
       ieltsComparison("Test Report Form Number", documentContainsValue(documentText, number) ? number : "", number, documentContainsValue(documentText, number)),
-      ieltsComparison("Date", documentContainsDate(documentText, date) ? date : "", date, documentContainsDate(documentText, date)),
+      { ...ieltsComparison("Date", certificateDate, date, Boolean(certificateDate) && certificateDate === normalizeDateValue(date)), templateId: certificateDate && certificateDate !== normalizeDateValue(date) ? "language-date" : null },
       ieltsComparison("Overall Band Score", overall === null ? "" : overall.toFixed(1), score, overall !== null && Number.isFinite(scoreNumber) && overall === scoreNumber)
     ];
   }
@@ -688,30 +1247,55 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  function extractUntScore(documentText, subjectPattern, rowNumber = null, maximum = 140) {
+  function extractUntScore(documentText, subjectPattern, rowNumber = null, maximum = 140, preferredValue = null) {
     const text = String(documentText || "");
     const pattern = new RegExp(`(?:${subjectPattern})`, "iu");
     const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     const lineIndex = lines.findIndex(line => pattern.test(line));
     if (lineIndex < 0) return null;
-    const numbers = source => [...String(source).matchAll(/(?<!\d)(\d{1,3})(?!\d)/g)]
-      .map(match => numericValue(match[1]))
-      .filter(value => value !== null && value >= 0 && value <= maximum);
+    const preferred = numericValue(preferredValue);
+    const numbers = source => {
+      const value = String(source);
+      const matches = [...value.matchAll(/(?<!\d)(\d{1,3})(?!\d)/g)];
+      const candidates = matches.map(match => ({ index: match.index || 0, value: numericValue(match[1]), merged: false }));
+      // Some PDF text layers and OCR engines expose 10, 12, 20, etc. as
+      // separate glyphs ("1 0"). Add the joined value before either digit.
+      for (let index = 0; index < matches.length - 1; index += 1) {
+        const current = matches[index];
+        const next = matches[index + 1];
+        const separator = value.slice((current.index || 0) + current[0].length, next.index || 0);
+        if (current[1].length !== 1 || next[1].length !== 1 || !/^\s+$/.test(separator)) continue;
+        candidates.push({ index: current.index || 0, value: numericValue(`${current[1]}${next[1]}`), merged: true });
+      }
+      return candidates
+        .filter(candidate => candidate.value !== null && candidate.value >= 0 && candidate.value <= maximum)
+        .sort((first, second) => first.index - second.index || Number(second.merged) - Number(first.merged))
+        .map(candidate => candidate.value);
+    };
+    const select = candidates => {
+      if (!candidates.length) return null;
+      if (preferred !== null && candidates.includes(preferred)) return preferred;
+      return candidates[0];
+    };
     const matchingLine = lines[lineIndex];
     const subject = matchingLine.match(pattern);
     const sameLine = numbers(matchingLine.slice((subject?.index || 0) + (subject?.[0]?.length || 0)));
-    if (sameLine.length) return sameLine[0];
+    if (sameLine.length) return select(sameLine);
     for (const offset of [1, -1, 2, -2]) {
       const nearby = lines[lineIndex + offset];
       if (!nearby || pattern.test(nearby)) continue;
       const candidates = numbers(nearby);
-      if (candidates.length && !/[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]/u.test(nearby)) return candidates[candidates.length - 1];
+      if (candidates.length && !/[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]/u.test(nearby)) {
+        const withoutRowNumber = candidates.filter(value => rowNumber === null || value !== rowNumber);
+        return select(withoutRowNumber) ?? select(candidates);
+      }
     }
     const flat = text.replace(/\s+/g, " ");
     const flatSubject = flat.match(pattern);
     if (!flatSubject) return null;
     const flatCandidates = numbers(flat.slice(flatSubject.index + flatSubject[0].length, flatSubject.index + flatSubject[0].length + 180));
-    return flatCandidates.find(value => rowNumber === null || value !== rowNumber) ?? flatCandidates[0] ?? null;
+    const withoutRowNumber = flatCandidates.filter(value => rowNumber === null || value !== rowNumber);
+    return select(withoutRowNumber) ?? select(flatCandidates);
   }
 
   const UNT_SUBJECTS = [
@@ -737,27 +1321,64 @@
   ];
 
   function untData(documentText, allFields) {
-    const mandatory = UNT_SUBJECTS.map(subject => ({
-      ...subject,
-      mydu: numericValue(findValueByLabel(allFields, subject.field)),
-      pdfScore: extractUntScore(documentText, subject.pdf, subject.row, subject.maximum) ?? extractUntScore(documentText, subject.pdfFallback, subject.row, subject.maximum)
-    }));
+    const recognizedMandatory = UNT_SUBJECTS.map(subject => {
+      const mydu = numericValue(findValueByLabel(allFields, subject.field));
+      return {
+        ...subject,
+        mydu,
+        pdfScore: extractUntScore(documentText, subject.pdf, subject.row, subject.maximum, mydu) ?? extractUntScore(documentText, subject.pdfFallback, subject.row, subject.maximum, mydu)
+      };
+    });
     const total = {
       label: "Общий балл ЕНТ",
       mydu: numericValue(findValueByLabel(allFields, /сумма баллов ент|общий балл ент/i)),
-      pdfScore: extractUntScore(documentText, "Итого", null, 140) ?? extractUntScore(documentText, "Барлығы", null, 140)
+      pdfScore: null
     };
-    const thresholdFailures = mandatory.filter(subject => subject.pdfScore !== null && subject.pdfScore < subject.minimum);
+    total.pdfScore = extractUntScore(documentText, "Итого", null, 140, total.mydu) ?? extractUntScore(documentText, "Барлығы", null, 140, total.mydu);
+    const totalMatches = total.mydu !== null && total.pdfScore !== null && total.mydu === total.pdfScore;
+    const mandatory = recognizedMandatory.map(subject => {
+      const recognized = subject.pdfScore;
+      const myduText = String(subject.mydu ?? "");
+      const recognizedText = String(recognized ?? "");
+      const possibleDroppedTrailingDigit = recognized !== null
+        && subject.mydu !== null
+        && recognized < subject.minimum
+        && subject.mydu >= subject.minimum
+        && myduText.length > recognizedText.length
+        && myduText.startsWith(recognizedText);
+      return {
+        ...subject,
+        recognizedScore: recognized,
+        pdfScore: possibleDroppedTrailingDigit && totalMatches ? subject.mydu : recognized,
+        possibleDroppedTrailingDigit,
+        recoveredFromTotal: possibleDroppedTrailingDigit && totalMatches
+      };
+    });
+    // Never declare a certificate invalid from a one-digit OCR fragment when
+    // the trailing digit may simply have been dropped. Without confirmation
+    // from the total score, this case is shown for manual review instead.
+    const thresholdFailures = mandatory.filter(subject => !subject.possibleDroppedTrailingDigit && subject.pdfScore !== null && subject.pdfScore < subject.minimum);
     return { subjects: mandatory, total, thresholdFailures, invalid: thresholdFailures.length > 0 };
   }
 
   function untComparisons(documentText, allFields) {
     const data = untData(documentText, allFields);
-    const thresholdComparisons = data.subjects.map(item => ({
-      label: item.label,
-      status: item.pdfScore === null ? "unknown" : item.pdfScore >= item.minimum ? "match" : "mismatch",
-      message: item.pdfScore === null ? "Не удалось прочитать балл в сертификате" : `Сертификат: ${item.pdfScore} · минимум: ${item.minimum}`
-    }));
+    const thresholdComparisons = data.subjects.map(item => {
+      if (item.possibleDroppedTrailingDigit) {
+        return {
+          label: item.label,
+          status: item.recoveredFromTotal ? "match" : "manual",
+          message: item.recoveredFromTotal
+            ? `Сертификат: ${item.pdfScore} · OCR пропустил последнюю цифру, общий балл совпадает`
+            : `OCR прочитал ${item.recognizedScore}, в MyDU указано ${item.mydu} — проверьте вручную`
+        };
+      }
+      return {
+        label: item.label,
+        status: item.pdfScore === null ? "unknown" : item.pdfScore >= item.minimum ? "match" : "mismatch",
+        message: item.pdfScore === null ? "Не удалось прочитать балл в сертификате" : `Сертификат: ${item.pdfScore} · минимум: ${item.minimum}`
+      };
+    });
     const totalAvailable = data.total.mydu !== null && data.total.pdfScore !== null;
     return {
       comparisons: [
@@ -800,10 +1421,12 @@
   }
 
   function languageCertificateRequired() {
-    return [...document.querySelectorAll("input[type='checkbox']")].some(input => {
-      const label = inputLabel(input);
-      return input.checked && /международн.*сертификат|владени.*иностранн.*язык/i.test(label);
+    const checked = [...document.querySelectorAll("input[type='checkbox']")].some(input => {
+      const context = `${inputLabel(input)} ${elementContext(input)}`;
+      return input.checked && /международн.*сертификат|владени.*иностранн.*язык/i.test(context);
     });
+    if (checked) return true;
+    return fields(true).some(field => /название международн.*сертификат/i.test(field.label) && Boolean(field.value));
   }
 
   function missingAttachmentWarnings() {
@@ -825,6 +1448,9 @@
         if (needsLanguageCertificate && !hasLanguageAttachment) warning = { templateId: "no-language-cert", label: "Сертификат", text: "Не загружен сертификат владения иностранным языком" };
       } else if (/(?<![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])(?:ент|ұбт)(?![A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])/iu.test(context) && !hasUntAttachment) warning = { templateId: "no-unt", label: "ЕНТ", text: "Не загружен сертификат ЕНТ" };
       if (warning) results.push({ ...warning, key: `missing:${warning.templateId}`, level: "danger" });
+    }
+    if (needsLanguageCertificate && !hasLanguageAttachment) {
+      results.push({ templateId: "no-language-cert", key: "missing:no-language-cert", label: "Сертификат", level: "danger", text: "Не загружен сертификат владения иностранным языком" });
     }
     return [...new Map(results.map(item => [item.key, item])).values()];
   }
@@ -857,16 +1483,9 @@
   }
 
   function nameGroups(allFields) {
-    const nameFields = matchingFields(allFields, /(фамилия|(^|\s)имя(\s|$)|отчество)/i)
-      .filter(field => !/транслитом/i.test(field.label));
+    const names = applicationNameData(allFields);
     const makeName = group => group.map(field => field.value).filter(Boolean).join(" ");
-    const applicant = makeName(nameFields.slice(0, 3));
-    const parents = [];
-    for (let index = 3; index < nameFields.length; index += 3) {
-      const value = makeName(nameFields.slice(index, index + 3));
-      if (value) parents.push(value);
-    }
-    return { applicant, parents };
+    return { applicant: makeName(names.applicant), parents: names.parents.map(makeName).filter(Boolean) };
   }
 
   function referenceValues(type, allFields) {
@@ -1269,7 +1888,11 @@
   function documentReviewHtml() {
     if (!documentReview) return "";
     const icons = { match: "✓", mismatch: "!", unknown: "?", manual: "○" };
-    const rows = documentReview.comparisons.map(item => `<div class="mdh-doc-row ${item.status}"><span>${icons[item.status]}</span><b>${esc(item.label)}</b><small>${esc(item.message || (item.status === "match" ? "Совпадает" : item.status === "mismatch" ? "Не найдено совпадение" : item.status === "manual" ? "Проверить вручную" : "Нет поля в MyDU"))}</small></div>`).join("");
+    const rows = documentReview.comparisons.map(item => {
+      const added = item.templateId && state.selected.some(selected => selected.templateId === item.templateId);
+      const action = item.templateId ? `<button type="button" class="mdh-doc-action" data-document-template="${esc(item.templateId)}" ${added ? "disabled" : ""}>${added ? "Добавлено" : "Добавить"}</button>` : "";
+      return `<div class="mdh-doc-row ${item.status}"><span>${icons[item.status]}</span><b>${esc(item.label)}</b><div class="mdh-doc-result"><small>${esc(item.message || (item.status === "match" ? "Совпадает" : item.status === "mismatch" ? "Не найдено совпадение" : item.status === "manual" ? "Проверить вручную" : "Нет поля в MyDU"))}</small>${action}</div></div>`;
+    }).join("");
     const references = (documentReview.reference || []).map(item => `<div class="mdh-reference-value ${item.wide ? "wide" : ""} ${item.empty ? "empty" : ""}"><small>${esc(item.label)}</small><strong>${esc(item.value)}</strong></div>`).join("");
     let grades = "";
     if (documentReview.grades) {
@@ -1297,7 +1920,7 @@
     const textPreview = documentReview.recognizedText
       ? `<details class="mdh-ocr-text"><summary>Показать распознанный текст</summary><pre>${esc(documentReview.recognizedText.slice(0, 12000))}${documentReview.recognizedText.length > 12000 ? "\n…" : ""}</pre></details>`
       : "";
-    return `<style>.mdh-reference-section{position:sticky;top:-12px;z-index:20;border-color:#9cc7ff;box-shadow:0 8px 24px #173d6626;background:#fff}.mdh-reference-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;background:#eaf4ff}.mdh-reference-head div{min-width:0}.mdh-reference-head h3{padding:0;background:none;font-size:13px}.mdh-reference-head small{display:block;margin-top:2px;color:#476987;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}.mdh-reference-toggle{border:0;border-radius:7px;background:#fff;color:#1557a0;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer}.mdh-reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mdh-reference-value{padding:8px;border:1px solid #d9e6f4;border-radius:8px;background:#f8fbff;min-width:0;user-select:text}.mdh-reference-value.wide{grid-column:1/-1}.mdh-reference-value small{display:block;color:#668099;font-size:9px;margin-bottom:3px}.mdh-reference-value strong{display:block;color:#102a43;font-size:12px;line-height:1.25;overflow-wrap:anywhere}.mdh-reference-value.empty strong{color:#a13b3b}.mdh-reference-note{margin:8px 0 0;padding:7px;border-radius:7px;background:#fff7df;color:#6c5309;font-size:10px;line-height:1.35}.mdh-readable{margin-top:8px;border-top:1px solid #dfe8f2;padding-top:8px}.mdh-readable>span{display:block;color:#167044;font-size:10px;font-weight:700;margin-bottom:5px}.mdh-doc-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:5px;padding:6px;border-bottom:1px solid #e6ebf1}.mdh-doc-row>span{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-weight:800}.mdh-doc-row b{font-size:11px}.mdh-doc-row small{font-size:9px}.mdh-doc-row.match>span{background:#dff5e7;color:#167044}.mdh-doc-row.match small{color:#167044}.mdh-doc-row.mismatch>span{background:#ffe4e4;color:#a22121}.mdh-doc-row.mismatch small{color:#a22121}.mdh-doc-row.unknown>span,.mdh-doc-row.manual>span{background:#edf3fa;color:#536b84}.mdh-readable-grades{display:grid;gap:4px;padding:8px;border-radius:8px;background:#f3f8ff;color:#173d66;font-size:10px}.mdh-readable-grades strong{font-size:16px}.mdh-readable-grades small{line-height:1.35;color:#536b84}.mdh-ocr-state,.mdh-ocr-error{margin-top:9px;padding:10px;border-radius:11px;background:#edf6ff;color:#174e83}.mdh-ocr-state>div:first-child{display:flex;justify-content:space-between;gap:8px;font-size:9px}.mdh-ocr-track{height:6px;margin:8px 0;border-radius:99px;background:#d7e8fa;overflow:hidden}.mdh-ocr-track i{display:block;height:100%;border-radius:99px;background:#1681ef;transition:width .2s}.mdh-ocr-state small{display:block;color:#65809d;font-size:8px;line-height:1.35}.mdh-ocr-error{display:grid;grid-template-columns:1fr auto;gap:4px 8px;background:#fff1f1;color:#9a292d}.mdh-ocr-error b,.mdh-ocr-error span{font-size:9px}.mdh-ocr-error span{grid-column:1/2}.mdh-ocr-error button{grid-column:2;grid-row:1/3;border:0;border-radius:9px;background:#fff;color:#9a292d;font-size:8px;font-weight:800;cursor:pointer}.mdh-ocr-done{margin:9px 0 0;padding:9px;border-radius:11px;background:#e8faf4;color:#127057;font-size:9px;line-height:1.4}.mdh-ocr-text{margin-top:9px;border:1px solid #dce7f2;border-radius:11px;background:#fbfdff}.mdh-ocr-text summary{padding:9px;color:#0868d4;font-size:9px;font-weight:800;cursor:pointer}.mdh-ocr-text pre{max-height:190px;margin:0;padding:9px;overflow:auto;border-top:1px solid #e5edf5;color:#40566f;font:9px/1.4 Consolas,monospace;white-space:pre-wrap;word-break:break-word;user-select:text}</style><section class="mdh-section mdh-reference-section"><div class="mdh-reference-head"><div><h3>Данные MyDU · ${esc(documentReview.type)}</h3><small title="${esc(documentReview.filename)}">${esc(documentReview.filename)}</small></div><button type="button" class="mdh-reference-toggle" id="mdh-reference-toggle">${referenceCollapsed ? "Развернуть" : "Свернуть"}</button></div>${referenceCollapsed ? "" : `<div class="mdh-inner"><div class="mdh-reference-grid">${references}</div>${ocr}${readable}${textPreview}</div>`}</section>`;
+    return `<style>.mdh-reference-section{position:sticky;top:-12px;z-index:20;border-color:#9cc7ff;box-shadow:0 8px 24px #173d6626;background:#fff}.mdh-reference-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;background:#eaf4ff}.mdh-reference-head div{min-width:0}.mdh-reference-head h3{padding:0;background:none;font-size:13px}.mdh-reference-head small{display:block;margin-top:2px;color:#476987;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}.mdh-reference-toggle{border:0;border-radius:7px;background:#fff;color:#1557a0;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer}.mdh-reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mdh-reference-value{padding:8px;border:1px solid #d9e6f4;border-radius:8px;background:#f8fbff;min-width:0;user-select:text}.mdh-reference-value.wide{grid-column:1/-1}.mdh-reference-value small{display:block;color:#668099;font-size:9px;margin-bottom:3px}.mdh-reference-value strong{display:block;color:#102a43;font-size:12px;line-height:1.25;overflow-wrap:anywhere}.mdh-reference-value.empty strong{color:#a13b3b}.mdh-reference-note{margin:8px 0 0;padding:7px;border-radius:7px;background:#fff7df;color:#6c5309;font-size:10px;line-height:1.35}.mdh-readable{margin-top:8px;border-top:1px solid #dfe8f2;padding-top:8px}.mdh-readable>span{display:block;color:#167044;font-size:10px;font-weight:700;margin-bottom:5px}.mdh-doc-row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:5px;padding:6px;border-bottom:1px solid #e6ebf1}.mdh-doc-row>span{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-weight:800}.mdh-doc-row b{font-size:11px}.mdh-doc-result{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}.mdh-doc-row small{font-size:9px}.mdh-doc-action{flex:none;border:0;border-radius:7px;padding:6px 8px;background:#0b315f;color:#fff;font-size:8px;font-weight:800;cursor:pointer}.mdh-doc-action:disabled{background:#e3ebf3;color:#657a90;cursor:default}.mdh-doc-row.match>span{background:#dff5e7;color:#167044}.mdh-doc-row.match small{color:#167044}.mdh-doc-row.mismatch>span{background:#ffe4e4;color:#a22121}.mdh-doc-row.mismatch small{color:#a22121}.mdh-doc-row.unknown>span,.mdh-doc-row.manual>span{background:#edf3fa;color:#536b84}.mdh-readable-grades{display:grid;gap:4px;padding:8px;border-radius:8px;background:#f3f8ff;color:#173d66;font-size:10px}.mdh-readable-grades strong{font-size:16px}.mdh-readable-grades small{line-height:1.35;color:#536b84}.mdh-ocr-state,.mdh-ocr-error{margin-top:9px;padding:10px;border-radius:11px;background:#edf6ff;color:#174e83}.mdh-ocr-state>div:first-child{display:flex;justify-content:space-between;gap:8px;font-size:9px}.mdh-ocr-track{height:6px;margin:8px 0;border-radius:99px;background:#d7e8fa;overflow:hidden}.mdh-ocr-track i{display:block;height:100%;border-radius:99px;background:#1681ef;transition:width .2s}.mdh-ocr-state small{display:block;color:#65809d;font-size:8px;line-height:1.35}.mdh-ocr-error{display:grid;grid-template-columns:1fr auto;gap:4px 8px;background:#fff1f1;color:#9a292d}.mdh-ocr-error b,.mdh-ocr-error span{font-size:9px}.mdh-ocr-error span{grid-column:1/2}.mdh-ocr-error button{grid-column:2;grid-row:1/3;border:0;border-radius:9px;background:#fff;color:#9a292d;font-size:8px;font-weight:800;cursor:pointer}.mdh-ocr-done{margin:9px 0 0;padding:9px;border-radius:11px;background:#e8faf4;color:#127057;font-size:9px;line-height:1.4}.mdh-ocr-text{margin-top:9px;border:1px solid #dce7f2;border-radius:11px;background:#fbfdff}.mdh-ocr-text summary{padding:9px;color:#0868d4;font-size:9px;font-weight:800;cursor:pointer}.mdh-ocr-text pre{max-height:190px;margin:0;padding:9px;overflow:auto;border-top:1px solid #e5edf5;color:#40566f;font:9px/1.4 Consolas,monospace;white-space:pre-wrap;word-break:break-word;user-select:text}</style><section class="mdh-section mdh-reference-section"><div class="mdh-reference-head"><div><h3>Данные MyDU · ${esc(documentReview.type)}</h3><small title="${esc(documentReview.filename)}">${esc(documentReview.filename)}</small></div><button type="button" class="mdh-reference-toggle" id="mdh-reference-toggle">${referenceCollapsed ? "Развернуть" : "Свернуть"}</button></div>${referenceCollapsed ? "" : `<div class="mdh-inner"><div class="mdh-reference-grid">${references}</div>${ocr}${readable}${textPreview}</div>`}</section>`;
   }
 
   const PANEL_CSS = `
@@ -1320,7 +1943,17 @@
     .mdh-local{display:flex;align-items:center;gap:6px;padding:8px 11px;border-radius:99px;background:#eafaf4;color:#3b846f;font-size:11px;font-weight:800}
     .mdh-local:before{content:"";width:7px;height:7px;border-radius:50%;background:#16bb91}
     .mdh-close{width:35px;height:35px;flex:none;border:0;border-radius:12px;background:#f1f5f9;color:#6e7e92;font-size:21px;line-height:1;cursor:pointer}
-    .mdh-nav{margin:14px 18px 0;padding:5px;flex:none;display:grid;grid-template-columns:1fr 1fr 1.08fr;gap:4px;border-radius:17px;background:#f1f5f9}
+    .mdh-language-bar{margin:12px 18px 0;padding:4px;flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;border:1px solid #e4ebf3;border-radius:15px;background:#f8fafc}
+    .mdh-language-bar button{height:36px;display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:11px;background:transparent;color:#68798e;font-size:10px;font-weight:850;cursor:pointer}
+    .mdh-language-bar button.active{background:#fff;color:#0868d4;box-shadow:0 3px 10px #194a7917}
+    .mdh-flag{position:relative;display:block;flex:none;width:22px;height:14px;overflow:hidden;border:1px solid #0626531f;border-radius:3px;box-shadow:0 1px 2px #0626531c}
+    .mdh-flag-ru{background:linear-gradient(to bottom,#fff 0 33.333%,#1856a8 33.333% 66.666%,#d52b1e 66.666% 100%)}
+    .mdh-flag-kz{background:#19b6cf}
+    .mdh-flag-kz:before{content:"";position:absolute;left:3px;top:1px;bottom:1px;width:2px;border-radius:2px;background:#f4cc24}
+    .mdh-flag-kz:after{content:"";position:absolute;left:11px;top:3px;width:7px;height:7px;border:1px solid #f4cc24;border-radius:50%;background:#f4cc24;box-shadow:0 5px 0 -3px #f4cc24}
+    .mdh-flag-en{background:repeating-linear-gradient(to bottom,#b22234 0 1.08px,#fff 1.08px 2.16px)}
+    .mdh-flag-en:before{content:"";position:absolute;left:0;top:0;width:9px;height:7.5px;background:#3c3b6e}
+    .mdh-nav{margin:9px 18px 0;padding:5px;flex:none;display:grid;grid-template-columns:1fr 1fr 1.08fr;gap:4px;border-radius:17px;background:#f1f5f9}
     .mdh-nav button{height:48px;border:0;border-radius:13px;background:transparent;color:#748399;font-size:10px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
     .mdh-nav button.active{background:#fff;color:#0868d4;box-shadow:0 3px 12px #194a7917}
     .mdh-nav-icon{font-size:15px;line-height:1}
@@ -1385,7 +2018,7 @@
     .mdh-grade-result button{border:0;border-radius:9px;padding:7px;background:#fff;color:#9a292d;font-size:8px;font-weight:800;cursor:pointer}
     .mdh-picked{position:relative;margin-bottom:10px;padding:14px 44px 14px 14px;border:1px solid #dce7f2;border-radius:17px;background:#fff}
     .mdh-picked>div{min-width:0}.mdh-picked b{display:block;margin-bottom:7px;color:#062653;font-size:11px}
-    .mdh-picked textarea,.mdh-custom,.mdh-result{width:100%;min-height:66px;padding:10px 11px;border:1px solid #d8e3ee;border-radius:12px;background:#fbfdff;color:#243b5a;font-size:10px;line-height:1.45;resize:vertical;outline:none}
+    .mdh-picked textarea,.mdh-custom,.mdh-result{width:100%;min-height:66px;padding:10px 11px;border:1px solid #d8e3ee;border-radius:12px;background:#fbfdff;color:#243b5a;font-size:12px;line-height:1.5;resize:vertical;outline:none}
     .mdh-picked textarea:focus,.mdh-custom:focus{border-color:#1681ef;box-shadow:0 0 0 3px #1681ef12}
     .mdh-picked>button{position:absolute;right:12px;top:12px;width:25px;height:25px;border:0;border-radius:9px;background:#fff1f1;color:#d3484e;font-size:16px;cursor:pointer}
     .mdh-composer{margin:16px 0;padding:14px;border-radius:18px;background:#eaf5ff}
@@ -1486,10 +2119,11 @@
 
   function templateHtml(template) {
     const query = state.query.trim().toLowerCase();
+    const commentText = templateCommentText(template);
     if (!currentSection().groups.includes(template.group)) return "";
-    if (query && !`${template.group} ${template.title} ${template.text}`.toLowerCase().includes(query)) return "";
+    if (query && !`${template.group} ${template.title} ${commentText} ${template.text}`.toLowerCase().includes(query)) return "";
     const isSelected = state.selected.some(item => item.templateId === template.id);
-    return `<button type="button" class="mdh-template ${isSelected ? "selected" : ""}" data-template="${esc(template.id)}" aria-pressed="${isSelected}"><span>${esc(template.group)}</span><strong>${esc(template.title)}</strong><small>${esc(template.text)}</small><em>${isSelected ? "Выбрано · нажмите, чтобы убрать" : ""}</em></button>`;
+    return `<button type="button" class="mdh-template ${isSelected ? "selected" : ""}" data-template="${esc(template.id)}" aria-pressed="${isSelected}"><span>${esc(template.group)}</span><strong>${esc(template.title)}</strong><small>${esc(commentText)}</small><em>${isSelected ? "Выбрано · нажмите, чтобы убрать" : ""}</em></button>`;
   }
 
   function countWord(value, one, few, many) {
@@ -1512,7 +2146,7 @@
     const selectionStart = oldSearch?.selectionStart ?? 0;
     const selectionEnd = oldSearch?.selectionEnd ?? 0;
     renderedView = activeView;
-    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "kato-not-city": "Населённый пункт", "fio-case": "ФИО абитуриента", "parent-fio-case": "ФИО родителя", "wrong-admission-type": "Тип поступления", "wrong-average": "Средний балл", "parent-work": "Данные родителя", "parent-unemployed": "Данные родителя", "unt-invalid-certificate": "Сертификат ЕНТ", "no-id": "Документы", "no-certificate": "Документ об образовании", "no-appendix": "Документ об образовании", "relationship": "Документы родителя", "no-unt": "ЕНТ", "no-language-cert": "Сертификат" };
+    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "series-uppercase": "Документ об образовании", "kato-not-city": "Населённый пункт", "fio-case": "ФИО абитуриента", "missing-patronymic": "ФИО абитуриента", "no-parent": "Данные родителя", "parent-fio-case": "ФИО родителя", "parent-name-missing": "ФИО родителя", "wrong-admission-type": "Тип поступления", "wrong-average": "Средний балл", "parent-work": "Данные родителя", "parent-unemployed": "Данные родителя", "unt-invalid-certificate": "Сертификат ЕНТ", "no-id": "Документы", "no-certificate": "Документ об образовании", "no-appendix": "Документ об образовании", "relationship": "Документы родителя", "no-unt": "ЕНТ", "no-language-cert": "Сертификат" };
     const warnings = state.warnings.map((item, index) => `<article class="mdh-warning ${item.level}"><div class="mdh-warning-head"><span class="mdh-warning-icon">${item.level === "danger" ? "!" : "?"}</span><span class="mdh-warning-label">${esc(item.label || warningLabels[item.templateId] || "Формальная проверка")}</span></div><span class="mdh-warning-text">${esc(item.text)}</span><div class="mdh-warning-actions"><button type="button" data-warning-add="${index}">Добавить</button><button type="button" data-warning-ignore="${index}">Игнорировать</button></div></article>`).join("");
     const selected = state.selected.length
       ? state.selected.map((item, index) => `<div class="mdh-picked"><div><b>${index + 1}. ${esc(item.title)}</b><textarea data-picked="${esc(item.id)}">${esc(item.text)}</textarea></div><button type="button" title="Удалить" data-remove="${esc(item.id)}">×</button></div>`).join("")
@@ -1533,8 +2167,13 @@
     const footer = activeView === "comment"
       ? `<footer class="mdh-foot"><div class="mdh-foot-copy"><b>Черновик сохраняется локально</b><span>Автоматически удалится через 3 минуты</span></div><button type="button" class="mdh-foot-secondary" id="mdh-clear">Очистить</button><button type="button" class="mdh-foot-primary" id="mdh-copy">Скопировать</button></footer>`
       : `<footer class="mdh-foot"><div class="mdh-foot-check">✓</div><div class="mdh-foot-copy"><b>${selectedCount ? `${selectedCount} ${countWord(selectedCount, "замечание готово", "замечания готовы", "замечаний готовы")}` : "Комментарий пока пуст"}</b><span>${selectedCount ? "Можно отредактировать перед копированием" : "Добавьте шаблон или свой пункт"}</span></div><button type="button" class="mdh-foot-primary" id="mdh-open-comment">К комментарию →</button></footer>`;
+    const languageBar = [
+      { id: "ru", label: "Рус", title: "Русский язык" },
+      { id: "kz", label: "Қаз", title: "Казахский язык" },
+      { id: "en", label: "Eng", title: "Английский язык" }
+    ].map(language => `<button type="button" class="${state.commentLanguage === language.id ? "active" : ""}" data-comment-language="${language.id}" title="${language.title}" aria-pressed="${state.commentLanguage === language.id}"><i class="mdh-flag mdh-flag-${language.id}" aria-hidden="true"></i><span>${language.label}</span></button>`).join("");
 
-    shadow.innerHTML = `<style>${PANEL_CSS}</style><button type="button" class="mdh-launch ${state.collapsed ? "" : "hidden"}" id="mdh-launch" style="${positionStyle("launch")}" title="Открыть или перетащить помощник"><img src="${ASSETS.peek}" alt="MyDU Helper"></button><aside class="mdh-panel ${state.collapsed ? "hidden" : ""}" style="${positionStyle("panel")}"><div class="mdh-drag-bar"></div><header class="mdh-header" title="Перетащите, чтобы переместить"><div class="mdh-brand-symbol"><img src="${ASSETS.brand}" alt="Astana IT University"></div><div class="mdh-head-copy"><b>MyDU Helper</b><span>Помощник приёмной комиссии</span></div><div class="mdh-local">локально</div><button type="button" class="mdh-close" id="mdh-close" title="Свернуть">×</button></header><nav class="mdh-nav"><button type="button" class="${activeView === "checks" ? "active" : ""}" data-view="checks"><span class="mdh-nav-icon">✓</span>Проверка${warningCount ? `<span class="mdh-count">${warningCount}</span>` : ""}</button><button type="button" class="${activeView === "templates" ? "active" : ""}" data-view="templates"><span class="mdh-nav-icon">▤</span>Шаблоны</button><button type="button" class="${activeView === "comment" ? "active" : ""}" data-view="comment"><span class="mdh-nav-icon">✎</span>Комментарий${selectedCount ? `<span class="mdh-count">${selectedCount}</span>` : ""}</button></nav><main class="mdh-body">${viewContent}</main>${footer}<div class="mdh-toast" id="mdh-toast"></div></aside>`;
+    shadow.innerHTML = `<style>${PANEL_CSS}</style><button type="button" class="mdh-launch ${state.collapsed ? "" : "hidden"}" id="mdh-launch" style="${positionStyle("launch")}" title="Открыть или перетащить помощник"><img src="${ASSETS.peek}" alt="MyDU Helper"></button><aside class="mdh-panel ${state.collapsed ? "hidden" : ""}" style="${positionStyle("panel")}"><div class="mdh-drag-bar"></div><header class="mdh-header" title="Перетащите, чтобы переместить"><div class="mdh-brand-symbol"><img src="${ASSETS.brand}" alt="Astana IT University"></div><div class="mdh-head-copy"><b>MyDU Helper</b><span>Помощник приёмной комиссии</span></div><div class="mdh-local">локально</div><button type="button" class="mdh-close" id="mdh-close" title="Свернуть">×</button></header><div class="mdh-language-bar" aria-label="Язык текста комментариев">${languageBar}</div><nav class="mdh-nav"><button type="button" class="${activeView === "checks" ? "active" : ""}" data-view="checks"><span class="mdh-nav-icon">✓</span>Проверка${warningCount ? `<span class="mdh-count">${warningCount}</span>` : ""}</button><button type="button" class="${activeView === "templates" ? "active" : ""}" data-view="templates"><span class="mdh-nav-icon">▤</span>Шаблоны</button><button type="button" class="${activeView === "comment" ? "active" : ""}" data-view="comment"><span class="mdh-nav-icon">✎</span>Комментарий${selectedCount ? `<span class="mdh-count">${selectedCount}</span>` : ""}</button></nav><main class="mdh-body">${viewContent}</main>${footer}<div class="mdh-toast" id="mdh-toast"></div></aside>`;
     placeElement(shadow.querySelector(".mdh-panel"), "panel");
     placeElement(shadow.querySelector(".mdh-launch"), "launch");
     bindEvents();
@@ -1573,6 +2212,7 @@
     };
     launch.onclick = () => { state.collapsed = false; render(); scheduleSave(); };
     shadow.querySelector("#mdh-close").onclick = () => { state.collapsed = true; render(); scheduleSave(); };
+    shadow.querySelectorAll("[data-comment-language]").forEach(node => node.onclick = () => setCommentLanguage(node.dataset.commentLanguage));
     shadow.querySelectorAll("[data-view]").forEach(node => node.onclick = () => { state.activeView = node.dataset.view; render(); scheduleSave(); });
     const openComment = shadow.querySelector("#mdh-open-comment");
     if (openComment) openComment.onclick = () => { state.activeView = "comment"; render(); scheduleSave(); };
@@ -1585,6 +2225,7 @@
     shadow.querySelectorAll("[data-section]").forEach(node => node.onclick = () => { state.activeSection = node.dataset.section; state.query = ""; render(); scheduleSave(); });
     shadow.querySelectorAll("[data-add]").forEach(node => node.onclick = () => addTemplate(node.dataset.add));
     shadow.querySelectorAll("[data-template]").forEach(node => node.onclick = () => toggleTemplate(node.dataset.template));
+    shadow.querySelectorAll("[data-document-template]").forEach(node => node.onclick = () => addTemplate(node.dataset.documentTemplate));
     shadow.querySelectorAll("[data-warning-add]").forEach(node => node.onclick = () => resolveWarning(Number(node.dataset.warningAdd), true));
     shadow.querySelectorAll("[data-warning-ignore]").forEach(node => node.onclick = () => resolveWarning(Number(node.dataset.warningIgnore), false));
     shadow.querySelectorAll("[data-grade]").forEach(node => node.oninput = event => {
@@ -1621,6 +2262,7 @@
       launch: validPosition(savedPosition?.launch)
     };
     state = saved && saved.expiresAt > Date.now() ? { ...freshState(), ...saved.state } : freshState();
+    if (!["ru", "kz", "en"].includes(state.commentLanguage)) state.commentLanguage = "ru";
     pageFieldCache = { personal: [], education: [], admission: [], social: [] };
     lastMyduSection = activeMyduSection();
     if (lastMyduSection) state.activeSection = lastMyduSection;

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MyDU Manager Helper — Store Assets</title>
+  <style>
+    :root{font-family:Inter,"Segoe UI",Arial,sans-serif;color:#082859;--blue:#0878f9;--deep:#063e9c;--line:#d9e7f8;--muted:#7486a1}
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#eff5fb}body{position:relative}.asset{width:100%;height:100%;position:relative;overflow:hidden}
+    .app-bg{position:absolute;inset:0;background:linear-gradient(135deg,#f8fbff 0%,#edf4fb 68%,#deebf8 100%)}
+    .app-top{height:74px;display:flex;align-items:center;gap:42px;padding:0 42px;border-bottom:1px solid #dfe9f3;background:#fff;color:#7a8ba2;font-size:16px;font-weight:700}.app-brand{font-size:25px;color:#174a83}.app-brand b{color:#0878f9}.app-nav.active{color:#0878f9;border-bottom:3px solid #0878f9;height:74px;display:flex;align-items:center}
+    .app-content{width:790px;padding:28px 42px}.app-content h1{font-size:29px;margin:0 0 20px}.card{background:#fff;border:1px solid #dce7f3;border-radius:18px;box-shadow:0 8px 24px rgba(25,67,111,.06);padding:22px;margin-bottom:18px}.card-title{font-size:18px;font-weight:800;margin-bottom:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px 18px}.field label{display:block;font-size:11px;text-transform:uppercase;color:#8798ae;font-weight:800;margin-bottom:7px}.fake-input{height:40px;border:1px solid #d9e4f0;border-radius:10px;background:#f8fbfe;padding:11px 13px;color:#466079;font-size:14px}.statusbar{display:flex;justify-content:space-between;align-items:center}.status-pill{padding:8px 12px;border-radius:99px;background:#eaf8ee;color:#138947;font-size:12px;font-weight:800}
+    .veil{position:absolute;inset:0;background:rgba(244,249,253,.14);backdrop-filter:blur(1.2px)}
+
+    .panel{position:absolute;right:28px;top:18px;width:458px;height:764px;border-radius:30px;background:#fff;border:1px solid #dfe9f5;box-shadow:0 22px 65px rgba(12,45,84,.24);overflow:hidden;display:flex;flex-direction:column}
+    .panel-head{height:92px;display:flex;align-items:center;padding:18px 22px;border-bottom:1px solid #e3edf7;gap:12px}.panel-logo{width:47px;height:55px;object-fit:contain}.panel-title{font-weight:900;font-size:21px;line-height:1.05}.panel-sub{font-size:11px;color:#8090a8;font-weight:700;margin-top:6px}.local{margin-left:auto;border-radius:99px;background:#e7f9f3;color:#16815f;font-size:11px;font-weight:900;padding:10px 13px}.close{font-size:21px;color:#71839b;margin-left:4px}
+    .langbar{height:43px;display:flex;align-items:center;justify-content:center;gap:8px;border-bottom:1px solid #e5edf7;background:#fbfdff}.lang-label{font-size:10px;color:#8292a8;font-weight:800;margin-right:4px}.lang{display:flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid #d9e6f4;border-radius:10px;font-size:10px;font-weight:900;color:#536a86}.lang.active{border-color:#0878f9;background:#eaf4ff;color:#0668dc}.flag{width:18px;height:12px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);position:relative;overflow:hidden}.flag.ru{background:linear-gradient(#fff 0 33%,#1c57ba 33% 66%,#e03232 66%)}.flag.kz{background:#20b8ca}.flag.kz:after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:#f3ce38;left:7px;top:3px}.flag.us{background:repeating-linear-gradient(#d43a3a 0 1.8px,#fff 1.8px 3.6px)}.flag.us:before{content:"";position:absolute;left:0;top:0;width:8px;height:7px;background:#2450a4}
+    .tabs{margin:12px 18px 10px;background:#eef3f9;border-radius:17px;padding:5px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px}.tab{text-align:center;padding:12px 4px;border-radius:13px;font-size:11px;color:#70829b;font-weight:900}.tab.active{background:#fff;color:#0670e9;box-shadow:0 6px 16px rgba(34,84,137,.1)}
+    .panel-body{padding:0 18px 14px;overflow:hidden;flex:1}.hero{height:142px;border-radius:21px;background:linear-gradient(135deg,#0878f9,#0759d5);position:relative;overflow:hidden;color:#fff;padding:22px}.eyebrow{font-size:10px;letter-spacing:1.3px;font-weight:900;opacity:.82}.hero h2{font-size:25px;margin:7px 0 3px;line-height:1.08}.hero p{font-size:13px;margin:0;opacity:.85}.hero button{margin-top:15px;border:0;border-radius:10px;padding:10px 16px;font-weight:900;color:#0564d5;background:#fff}.mascot{position:absolute;right:-8px;bottom:-22px;width:168px;height:180px;object-fit:contain}.hero-ring{position:absolute;border:20px solid rgba(255,255,255,.12);width:170px;height:170px;border-radius:50%;right:0;top:8px}
+    .section-h{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 10px}.section-h h3{font-size:18px;margin:0}.section-h span{font-size:10px;color:#8191a7}.warning{border-radius:16px;padding:14px 14px 13px 17px;margin-bottom:10px;background:#fff5f5;border:1px solid #ffd6d8;position:relative}.warning:before{content:"";position:absolute;left:0;top:13px;bottom:13px;width:4px;background:#ff5963;border-radius:4px}.warning.orange{background:#fffbef;border-color:#f5e2aa}.warning.orange:before{background:#f1a70a}.warn-top{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:.4px;color:#7e8da2;font-weight:900;text-transform:uppercase}.warn-icon{width:22px;height:22px;border-radius:7px;background:#ff5963;color:#fff;display:grid;place-items:center;font-size:14px}.orange .warn-icon{background:#f1a70a}.warn-title{font-weight:900;font-size:14px;line-height:1.25;margin:7px 0 10px}.warn-actions{display:flex;gap:8px}.warn-actions b,.warn-actions span{padding:8px 14px;border-radius:9px;font-size:10px}.warn-actions b{background:#082a5b;color:#fff}.warn-actions span{border:1px solid #d5e0ec;color:#6d7f97}
+    .panel-foot{height:66px;border-top:1px solid #e2ebf5;display:flex;align-items:center;padding:10px 18px;gap:11px;box-shadow:0 -8px 24px rgba(18,52,90,.06)}.ok{width:38px;height:38px;border-radius:13px;background:#e6f9f2;color:#0ca270;display:grid;place-items:center;font-size:25px}.foot-copy b{font-size:13px}.foot-copy div{font-size:10px;color:#8090a6;margin-top:3px}.foot-btn{margin-left:auto;background:#0878f9;color:#fff;border-radius:12px;padding:12px 17px;font-size:11px;font-weight:900}
+
+    .library-title{margin:8px 2px 12px}.library-title .eyebrow{color:#0878f9}.library-title h2{font-size:24px;margin:5px 0 4px}.library-title p{font-size:11px;color:#7d8da3;margin:0}.segments{display:grid;grid-template-columns:1fr 1fr 1fr;background:#eef3f9;padding:5px;border-radius:16px;margin-bottom:12px}.segments div{font-size:10px;font-weight:900;color:#74859c;text-align:center;padding:10px 4px;border-radius:12px}.segments .active{background:#fff;color:#0670e9}.search{border:1px solid #d8e5f3;border-radius:13px;padding:11px 13px;color:#8b9ab0;font-size:11px;margin-bottom:10px}.template{border:1px solid #d9e7f6;border-radius:16px;padding:13px 48px 12px 14px;margin-bottom:9px;position:relative}.template .group{font-size:8px;color:#0878f9;font-weight:900;text-transform:uppercase}.template h4{font-size:14px;margin:4px 0 5px}.template p{font-size:10px;line-height:1.35;color:#72839a;margin:0}.plus{position:absolute;right:12px;top:17px;width:28px;height:28px;border-radius:9px;background:#e9f4ff;color:#0878f9;display:grid;place-items:center;font-size:19px;font-weight:900}
+
+    .promo{background:linear-gradient(130deg,#053e9e 0%,#0878f9 57%,#15a8ff 100%);color:#fff;position:relative;overflow:hidden}.promo:before,.promo:after{content:"";position:absolute;border-radius:50%;border:36px solid rgba(255,255,255,.08)}.promo:before{width:260px;height:260px;right:-90px;top:-130px}.promo:after{width:180px;height:180px;left:-90px;bottom:-120px}.promo-logo-wrap{background:#fff;border-radius:24px;display:grid;place-items:center;box-shadow:0 12px 30px rgba(0,25,80,.2)}.promo-logo{width:70%;height:70%;object-fit:contain}.promo-copy{position:relative;z-index:2}.promo-copy h1{margin:0;line-height:1.03}.promo-copy p{margin:12px 0 0;opacity:.88;line-height:1.35}.promo-badges{display:flex;gap:10px;margin-top:18px}.promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);padding:8px 12px;border-radius:99px;font-size:12px;font-weight:800}.promo-mascot{position:absolute;z-index:1;object-fit:contain;filter:drop-shadow(0 20px 25px rgba(0,22,74,.25))}
+    body[data-mode="promo-small"] .promo{width:440px;height:280px;padding:27px 24px}body[data-mode="promo-small"] .promo-logo-wrap{width:56px;height:56px;border-radius:15px}body[data-mode="promo-small"] .promo-copy{margin-top:15px;width:260px}body[data-mode="promo-small"] .promo-copy h1{font-size:27px}body[data-mode="promo-small"] .promo-copy p{font-size:13px;width:250px}body[data-mode="promo-small"] .promo-mascot{width:190px;height:220px;right:-13px;bottom:-37px}body[data-mode="promo-small"] .promo-badges{display:none}
+    body[data-mode="promo-marquee"] .promo{width:1400px;height:560px;padding:76px 95px}body[data-mode="promo-marquee"] .promo-logo-wrap{width:98px;height:98px}body[data-mode="promo-marquee"] .promo-copy{margin-top:28px;width:770px}body[data-mode="promo-marquee"] .promo-copy h1{font-size:60px}body[data-mode="promo-marquee"] .promo-copy p{font-size:24px;width:710px}body[data-mode="promo-marquee"] .promo-mascot{width:520px;height:550px;right:45px;bottom:-56px}
+  </style>
+</head>
+<body>
+  <div id="screen" class="asset">
+    <div class="app-bg">
+      <header class="app-top"><div class="app-brand">My<b>DU</b></div><div class="app-nav active">Заявление</div><div class="app-nav">Документы</div><div class="app-nav">Статус</div></header>
+      <main class="app-content">
+        <div class="statusbar"><h1>Заявление абитуриента</h1><span class="status-pill">Тестовые данные</span></div>
+        <section class="card"><div class="card-title">Персональные данные</div><div class="form-grid">
+          <div class="field"><label>Фамилия</label><div class="fake-input">ТЕСТОВ</div></div><div class="field"><label>Имя</label><div class="fake-input">АБИТУРИЕНТ</div></div>
+          <div class="field"><label>Дата рождения</label><div class="fake-input">01.01.2007</div></div><div class="field"><label>Гражданство</label><div class="fake-input">Республика Казахстан</div></div>
+        </div></section>
+        <section class="card"><div class="card-title">Адрес проживания</div><div class="form-grid"><div class="field"><label>Населённый пункт</label><div class="fake-input">Астана</div></div><div class="field"><label>Улица</label><div class="fake-input">Тестовая</div></div><div class="field"><label>Дом</label><div class="fake-input">10</div></div><div class="field"><label>Квартира</label><div class="fake-input">25</div></div></div></section>
+        <section class="card"><div class="card-title">Документы</div><div class="form-grid"><div class="field"><label>Тип документа</label><div class="fake-input">Удостоверение личности</div></div><div class="field"><label>Статус проверки</label><div class="fake-input">Ожидает проверки</div></div></div></section>
+      </main>
+      <div class="veil"></div>
+    </div>
+
+    <aside class="panel checks-panel">
+      <header class="panel-head"><img class="panel-logo" src="../src/assets/aitu-logo.png"><div><div class="panel-title">MyDU Helper</div><div class="panel-sub">Помощник приёмной комиссии</div></div><div class="local">● &nbsp;локально</div><div class="close">×</div></header>
+      <div class="langbar"><span class="lang-label">Язык комментария</span><span class="lang active"><i class="flag ru"></i>РУС</span><span class="lang"><i class="flag kz"></i>ҚАЗ</span><span class="lang"><i class="flag us"></i>ENG</span></div>
+      <nav class="tabs"><div class="tab active">✓ Проверка</div><div class="tab">▤ Шаблоны</div><div class="tab">✎ Комментарий</div></nav>
+      <div class="panel-body">
+        <section class="hero"><div class="hero-ring"></div><div class="eyebrow">ФОРМАЛЬНАЯ ПРОВЕРКА</div><h2>Проверка завершена</h2><p>Нужно перепроверить 2 пункта</p><button>Проверить снова</button><img class="mascot" src="../src/assets/mascot-question.png"></section>
+        <div class="section-h"><h3>Стоит перепроверить</h3><span>2 замечания</span></div>
+        <article class="warning"><div class="warn-top"><span class="warn-icon">!</span>АДРЕС ПРОЖИВАНИЯ</div><div class="warn-title">Адрес заполнен не полностью</div><div class="warn-actions"><b>Добавить</b><span>Игнорировать</span></div></article>
+        <article class="warning orange"><div class="warn-top"><span class="warn-icon">!</span>ДАННЫЕ РОДИТЕЛЯ</div><div class="warn-title">Не указаны сведения о родителе или законном представителе</div><div class="warn-actions"><b>Добавить</b><span>Игнорировать</span></div></article>
+      </div>
+      <footer class="panel-foot"><div class="ok">✓</div><div class="foot-copy"><b>2 замечания готовы</b><div>Можно отредактировать перед копированием</div></div><div class="foot-btn">К комментарию →</div></footer>
+    </aside>
+
+    <aside class="panel templates-panel" hidden>
+      <header class="panel-head"><img class="panel-logo" src="../src/assets/aitu-logo.png"><div><div class="panel-title">MyDU Helper</div><div class="panel-sub">Помощник приёмной комиссии</div></div><div class="local">● &nbsp;локально</div><div class="close">×</div></header>
+      <div class="langbar"><span class="lang-label">Язык комментария</span><span class="lang"><i class="flag ru"></i>РУС</span><span class="lang active"><i class="flag kz"></i>ҚАЗ</span><span class="lang"><i class="flag us"></i>ENG</span></div>
+      <nav class="tabs"><div class="tab">✓ Проверка</div><div class="tab active">▤ Шаблоны</div><div class="tab">✎ Комментарий</div></nav>
+      <div class="panel-body">
+        <div class="library-title"><div class="eyebrow">БИБЛИОТЕКА</div><h2>Шаблоны замечаний</h2><p>Название остаётся на русском, текст комментария меняет язык.</p></div>
+        <div class="segments"><div class="active">Персональные<br>данные</div><div>Предыдущее<br>образование</div><div>Поступление</div></div>
+        <div class="search">Поиск в разделе…</div>
+        <article class="template"><div class="group">ПЕРСОНАЛЬНЫЕ СВЕДЕНИЯ</div><h4>Фото недействительное</h4><p>Жарамсыз фотосурет. 3×4 форматындағы сапалы фотосуретті жүктеңіз…</p><div class="plus">+</div></article>
+        <article class="template"><div class="group">ПЕРСОНАЛЬНЫЕ СВЕДЕНИЯ</div><h4>Не указан конкретный населённый пункт</h4><p>Елді мекенді дұрыс форматта көрсетіңіз: қала немесе ауыл атауы…</p><div class="plus">+</div></article>
+        <article class="template"><div class="group">ПЕРСОНАЛЬНЫЕ СВЕДЕНИЯ</div><h4>Адрес указан неверно</h4><p>Мекенжайды тексеріп, толық және дұрыс форматта жазыңыз…</p><div class="plus">+</div></article>
+      </div>
+      <footer class="panel-foot"><div class="ok">✓</div><div class="foot-copy"><b>Комментарий пока пуст</b><div>Добавьте шаблон или свой пункт</div></div><div class="foot-btn">К комментарию →</div></footer>
+    </aside>
+  </div>
+
+  <div id="promo" class="asset promo" hidden>
+    <div class="promo-logo-wrap"><img class="promo-logo" src="../src/assets/aitu-logo.png"></div>
+    <div class="promo-copy"><h1>MyDU Manager<br>Helper</h1><p>Локальная проверка заявлений, документов и комментариев — без передачи данных во внешние сервисы.</p><div class="promo-badges"><span class="promo-badge">Локальный OCR</span><span class="promo-badge">РУС · ҚАЗ · ENG</span><span class="promo-badge">Версия 1.4.0</span></div></div>
+    <img class="promo-mascot" src="../src/assets/mascot-smile.png">
+  </div>
+  <script>
+    const mode = new URLSearchParams(location.search).get("mode") || "checks";
+    document.body.dataset.mode = mode;
+    if (mode === "templates") {
+      document.querySelector(".checks-panel").hidden = true;
+      document.querySelector(".templates-panel").hidden = false;
+    }
+    if (mode.startsWith("promo-")) {
+      document.querySelector("#screen").hidden = true;
+      document.querySelector("#promo").hidden = false;
+    }
+  </script>
+</body>
+</html>
