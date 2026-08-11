@@ -3,6 +3,7 @@
 
   const DRAFT_TTL = 3 * 60 * 1000;
   const POSITION_KEY = "mydu-helper-position";
+  const THEME_KEY = "mydu-helper-theme";
   const ASSETS = {
     brand: chrome.runtime.getURL("src/assets/aitu-logo.png"),
     question: chrome.runtime.getURL("src/assets/mascot-question.png"),
@@ -45,7 +46,8 @@
   ];
 
   const TEMPLATES = [
-    { id: "photo-invalid", group: "Персональные сведения", title: "Фото недействительное", text: "Фото недействительное. Пожалуйста, загрузите фото 3×4 в корректном формате: лицо должно быть хорошо видно, фон нейтральный, фото без посторонних предметов и без сильной обработки." },
+    { id: "photo-invalid", group: "Персональные сведения", title: "Фото недействительное", text: "Фото недействительное. Пожалуйста, загрузите фото 3×4 в корректном формате: лицо должно быть хорошо видно, фон нейтральный, фото без посторонних предметов и в хорошем качестве." },
+    { id: "photo-quality", group: "Персональные сведения", title: "Фото 3×4 плохого качества", text: "Загрузите фото 3×4 в хорошем качестве." },
     { id: "kato-not-city", group: "Персональные сведения", title: "Не указан конкретный населённый пункт", text: "Укажите населённый пункт в корректном формате: именно город/населённый пункт, например: «г. Актобе». Не выбирайте значение формата «Г.А.»" },
     { id: "kato-address", group: "Персональные сведения", title: "КАТО не совпадает с адресом", text: "Проверьте населённый пункт прописки/проживания. Он должен совпадать с адресом, который указан в поле «Адрес прописки» / «Адрес проживания»." },
     { id: "address-incomplete", group: "Персональные сведения", title: "Адрес указан неверно", text: "Исправьте адрес и укажите его в формате: ул./пр-т/ш./мкр. [название], д. [номер дома], кв. [номер квартиры]. Для частного дома номер квартиры не указывается." },
@@ -75,6 +77,7 @@
     { id: "relationship", group: "Родители/Лица, заменяющие родителей", title: "Документ о родстве", text: "Загрузите скан-копию документа, подтверждающего родство или законное представительство, в правильном формате. В этом поле необходимо загрузить именно ваше свидетельство о рождении." },
     { id: "school-name", group: "Сведения о предыдущем образовании", title: "Название образовательного учреждения", text: "Укажите наименование образовательного учреждения в точности так, как оно указано в аттестате/дипломе." },
     { id: "school-city", group: "Сведения о предыдущем образовании", title: "Населённый пункт образовательного учреждения", text: "Замените населённый пункт образовательного учреждения на корректный город/населённый пункт, например: «г. Актобе». Не выбирайте значение формата «Г.А.»" },
+    { id: "school-instruction-language", group: "Сведения о предыдущем образовании", title: "Основной язык обучения", text: "Укажите именно основной язык, на котором проходило обучение в вашем классе в вашей школе: казахский или русский." },
     { id: "school-country", group: "Сведения о предыдущем образовании", title: "Страна образовательного учреждения", text: "Проверьте страну образовательного учреждения и укажите её корректно согласно документу об образовании." },
     { id: "education-data-mismatch", group: "Сведения о предыдущем образовании", title: "Данные не совпадают с документом", text: "Проверьте сведения о предыдущем образовании. Все данные должны совпадать с аттестатом/дипломом и приложением к нему." },
     { id: "series-number", group: "Сведения о дипломе", title: "Серия и номер перепутаны", text: "Укажите верно данные по аттестату/диплому: серия — это буквы, например «ЖОБ» или «BT», номер — это цифры рядом с этими буквами." },
@@ -83,6 +86,7 @@
     { id: "education-date", group: "Сведения о дипломе", title: "Дата выдачи аттестата/диплома", text: "Введите корректную дату выдачи аттестата/диплома. Дата должна совпадать с датой, указанной в документе." },
     { id: "no-certificate", group: "Сведения о дипломе", title: "Нет скан-копии аттестата/диплома", text: "Загрузите скан-копию аттестата/диплома в соответствующем разделе." },
     { id: "no-appendix", group: "Сведения о дипломе", title: "Нет приложения", text: "Загрузите отдельно скан-копию приложения к аттестату/диплому." },
+    { id: "appendix-both-sides", group: "Сведения о дипломе", title: "Загружено приложение на одном языке", text: "Пожалуйста, прикрепите приложение к аттестату/диплому на всех имеющихся языках." },
     { id: "separate-files", group: "Сведения о дипломе", title: "Аттестат и приложение нужно разделить", text: "Загрузите скан-копию аттестата/диплома и скан-копию приложения отдельно: аттестат/диплом — в своё поле, приложение — в своё поле." },
     { id: "average-grade", group: "Сведения о дипломе", title: "Средний балл", text: "Введите средний балл аттестата/диплома. Для расчёта среднего балла внесите количество оценок и нажмите «Рассчитать»." },
     { id: "grade-count", group: "Сведения о дипломе", title: "Количество оценок", text: "Введите корректное количество оценок из приложения к аттестату/диплому." },
@@ -91,6 +95,9 @@
     { id: "payment-form", group: "Сведения о поступлении", title: "Форма оплаты", text: "Проверьте форму оплаты и укажите корректный вариант: «Платно» или «Бесплатно (грант)»." },
     { id: "gop-op", group: "Сведения о поступлении", title: "ГОП/ОП", text: "Проверьте выбранную группу образовательных программ и образовательную программу. Они должны соответствовать выбранному направлению поступления." },
     { id: "dormitory", group: "Сведения о поступлении", title: "Общежитие", text: "Проверьте поле «Потребность в общежитии» и выберите корректный вариант." },
+    { id: "unt-gop-subjects", group: "ЕНТ/Собеседование", title: "Предметы ЕНТ не соответствуют ГОП", text: "Пожалуйста, проверьте предметы ЕНТ и выберите соответствующую им группу образовательных программ." },
+    { id: "unt-total-score", group: "ЕНТ/Собеседование", title: "Общий балл ниже порога ГОП", text: "Пожалуйста, предоставьте сертификат ЕНТ с общим баллом не ниже порогового для выбранной группы образовательных программ." },
+    { id: "unt-funding-unavailable", group: "ЕНТ/Собеседование", title: "Грант для ГОП не предусмотрен", text: "Пожалуйста, выберите платную форму обучения: для выбранной группы образовательных программ поступление на грант не предусмотрено." },
     { id: "no-unt", group: "ЕНТ/Собеседование", title: "Нет сертификата ЕНТ", text: "Прикрепите скан-копию сертификата ЕНТ в разделе «ЕНТ» / «Сведения о поступлении»." },
     { id: "unt-not-requested", group: "ЕНТ/Собеседование", title: "ЕНТ не запрошен", text: "Нажмите кнопку «Запросить результаты ЕНТ», дождитесь загрузки данных из системы, затем прикрепите скан-копию сертификата ЕНТ." },
     { id: "wrong-unt", group: "ЕНТ/Собеседование", title: "Не тот файл в ЕНТ", text: "В разделе «ЕНТ» необходимо прикрепить именно скан-копию сертификата ЕНТ. Проверьте загруженный файл и замените его на корректный." },
@@ -109,8 +116,12 @@
 
   const TEMPLATE_TRANSLATIONS = {
     "photo-invalid": {
-      kz: "Фотосурет жарамсыз. 3×4 фотосуретті дұрыс форматта жүктеңіз: бет анық көрінуі, фон бейтарап, фотосуретте бөгде заттар болмауы және ол қатты өңделмеуі тиіс.",
-      en: "The photo is invalid. Please upload a 3×4 photo in the correct format: the face must be clearly visible, the background must be neutral, and the photo must not contain foreign objects or excessive editing."
+      kz: "Фотосурет жарамсыз. 3×4 фотосуретті дұрыс форматта жүктеңіз: бет анық көрінуі, фон бейтарап, фотосуретте бөгде заттар болмауы және ол сапалы болуы тиіс.",
+      en: "The photo is invalid. Please upload a 3×4 photo in the correct format: the face must be clearly visible, the background must be neutral, and the photo must not contain foreign objects and must be of good quality."
+    },
+    "photo-quality": {
+      kz: "3×4 фотосуретті жақсы сапада жүктеңіз.",
+      en: "Please upload a high-quality 3×4 photo."
     },
     "kato-not-city": {
       kz: "Елді мекенді дұрыс форматта көрсетіңіз: нақты қала немесе елді мекен, мысалы, «Ақтөбе қ.». «Г.А.» форматындағы мәнді таңдамаңыз.",
@@ -228,6 +239,10 @@
       kz: "Білім беру ұйымының елді мекенін дұрыс қалаға/елді мекенге ауыстырыңыз, мысалы, «Ақтөбе қ.». «Г.А.» форматындағы мәнді таңдамаңыз.",
       en: "Replace the educational institution’s locality with the correct city/settlement, for example, “Aktobe”. Do not select a value in the “Г.А.” format."
     },
+    "school-instruction-language": {
+      kz: "Мектебіңіздегі сыныбыңызда оқу жүргізілген негізгі тілді нақты көрсетіңіз: қазақ немесе орыс тілі.",
+      en: "Specify the primary language of instruction used in your class at school: Kazakh or Russian."
+    },
     "school-country": {
       kz: "Білім беру ұйымының елін тексеріп, білім туралы құжатқа сәйкес дұрыс көрсетіңіз.",
       en: "Check the country of the educational institution and enter it correctly according to the education document."
@@ -259,6 +274,10 @@
     "no-appendix": {
       kz: "Аттестатқа/дипломға қосымшаның скан-көшірмесін бөлек жүктеңіз.",
       en: "Upload a separate scanned copy of the transcript to the certificate/diploma."
+    },
+    "appendix-both-sides": {
+      kz: "Аттестатқа/дипломға қосымшаны қолда бар барлық тілде тіркеңіз.",
+      en: "Please attach the transcript to the certificate/diploma in all available languages."
     },
     "separate-files": {
       kz: "Аттестаттың/дипломның скан-көшірмесін және қосымшаның скан-көшірмесін бөлек жүктеңіз: аттестат/диплом — өз өрісіне, қосымша — өз өрісіне.",
@@ -347,6 +366,18 @@
     "foreign-interview": {
       kz: "Ақылы негізде оқуға түсу үшін шетелдік талапкерлер алдымен келесі нысан арқылы әңгімелесуге өтінім беруі қажет:\n\nhttps://docs.google.com/forms/d/e/1FAIpQLSfJcrouK6xXkGc53kseteWyV3rKrq-nDa-8VQWIQOJF3wDC9Q/viewform\n\nНысанды толтырып, қажетті құжаттарды сапалы, анық түсті скан-көшірмелер түрінде жүктеңіз.\n\nMyDU жүйесінде өтінішті әңгімелесуден сәтті өткеннен кейін ғана бере аласыз. Әзірге ағымдағы өтінімді жоймаңыз және одан бас тартпаңыз. Оны сол күйінде сақтап қойыңыз.\n\nЕгер Сіз шетел азаматтарына арналған Bolashak гранттық бағдарламасына өтінім берген болсаңыз, алдымен нәтижелерді күтіп, өтінішті түпкілікті шешім шыққаннан кейін ғана беріңіз.\n\nЕгер Сіз Қазақстан Республикасының азаматы болмасаңыз, бірақ ұлтыңыз қазақ және «Қандас» мәртебеңіз болса, ҰБТ негізінде мемлекеттік гранттар конкурсына қатыса аласыз. Конкурсқа қатысқаннан кейін MyDU жүйесінде өтініш бере аласыз.",
       en: "For tuition-based admission, foreign applicants must first apply for an interview using the following form:\n\nhttps://docs.google.com/forms/d/e/1FAIpQLSfJcrouK6xXkGc53kseteWyV3rKrq-nDa-8VQWIQOJF3wDC9Q/viewform\n\nPlease complete the form and upload the required documents as clear, high-quality color scans.\n\nYou will be able to submit an application in MyDU only after successfully passing the interview. For now, please do not delete or cancel the current application; simply keep it saved as it is.\n\nIf you have applied for the Bolashak grant program for foreign citizens, please wait for the results and submit your application only after receiving the final decision.\n\nIf you are not a citizen of the Republic of Kazakhstan but are ethnically Kazakh and have Kandas status, you may participate in the state grant competition based on the UNT. After participating in the competition, you will be able to submit an application in MyDU."
+    },
+    "unt-gop-subjects": {
+      kz: "ҰБТ пәндерін тексеріп, оларға сәйкес білім беру бағдарламаларының тобын таңдаңыз.",
+      en: "Please check the UNT subjects and select a matching group of educational programs."
+    },
+    "unt-total-score": {
+      kz: "Таңдалған білім беру бағдарламаларының тобы үшін шекті балдан төмен емес жалпы балы бар ҰБТ сертификатын ұсыныңыз.",
+      en: "Please provide a UNT certificate with a total score that meets the threshold for the selected group of educational programs."
+    },
+    "unt-funding-unavailable": {
+      kz: "Ақылы оқу түрін таңдаңыз: таңдалған білім беру бағдарламаларының тобы үшін грантқа түсу қарастырылмаған.",
+      en: "Please select tuition-based admission: grant admission is not available for the selected group of educational programs."
     }
   };
 
@@ -362,6 +393,7 @@
   let lastDocumentSignature = "";
   let lastAttachmentHint = "";
   let referenceCollapsed = false;
+  let theme = "light";
   let uiPosition = { panel: null, launch: null };
   let renderedView = null;
   let lastMyduSection = null;
@@ -651,6 +683,8 @@
     if (activePageSection === "admission") {
       const admissionIssue = schoolInterviewWarning(comprehensiveFields);
       if (admissionIssue) results.push(admissionIssue);
+      const admissionRules = globalThis.MyDUAdmissionRules;
+      if (admissionRules?.check) results.push(...admissionRules.check(comprehensiveFields, document.body.innerText));
     }
     if (activePageSection === "education") {
       const calculatedAverage = gradeAverage();
@@ -680,6 +714,7 @@
     if (!state || !["ru", "kz", "en"].includes(language) || state.commentLanguage === language) return;
     state.commentLanguage = language;
     state.selected = state.selected.map(item => {
+      if (item.commentTexts) return { ...item, text: item.commentTexts[language] || item.commentTexts.ru || item.text };
       if (!item.templateId) return item;
       const template = selectedTemplate(item.templateId);
       return template ? { ...item, title: template.title, text: templateCommentText(template, language) } : item;
@@ -714,7 +749,24 @@
   function resolveWarning(index, shouldAdd) {
     const warning = state.warnings[index];
     if (!warning) return;
-    if (shouldAdd) appendTemplate(warning.templateId);
+    if (shouldAdd) {
+      const template = selectedTemplate(warning.templateId);
+      if (template && warning.commentTexts) {
+        const selectedKey = warning.key || warningKey(warning);
+        if (!state.selected.some(item => item.warningKey === selectedKey)) {
+          state.selected.push({
+            id: `${warning.templateId}-${Date.now()}-${Math.random()}`,
+            templateId: warning.templateId,
+            warningKey: selectedKey,
+            commentTexts: warning.commentTexts,
+            title: template.title,
+            text: warning.commentTexts[state.commentLanguage] || warning.commentTexts.ru || templateCommentText(template)
+          });
+        }
+      } else {
+        appendTemplate(warning.templateId);
+      }
+    }
     state.warnings.splice(index, 1);
     render(); scheduleSave();
   }
@@ -1508,7 +1560,9 @@
     }
     if (type.id === "education") return [
       row("Серия аттестата/диплома", findValueByLabel(allFields, /серия (аттестата|диплома)/i)),
-      row("Номер аттестата/диплома", findValueByLabel(allFields, /номер (аттестата|диплома)/i))
+      row("Номер аттестата/диплома", findValueByLabel(allFields, /номер (аттестата|диплома)/i)),
+      row("Дата выдачи аттестата/диплома", findValueByLabel(allFields, /дата выдачи (аттестата|диплома)/i)),
+      row("Наименование образовательного учреждения", findValueByLabel(allFields, /наименовани[ея] образовательного учреждения|образовательн.*учрежден.*(?:название|наименование)/i), true)
     ];
     if (type.id === "appendix") return [
       row("Средний балл в MyDU", findValueByLabel(allFields, /средний балл (аттестата|диплома)/i), true)
@@ -1528,7 +1582,22 @@
       const data = untData("", allFields);
       return [...data.subjects, data.total].map(item => row(item.label, item.mydu));
     }
-    return [row("Тип файла", "Определите документ визуально", true)];
+    const sectionId = activeMyduSection() || lastMyduSection;
+    const fallbackRows = sectionId === "personal"
+      ? referenceValues({ id: "identity" }, allFields)
+      : sectionId === "education"
+        ? [...referenceValues({ id: "education" }, allFields), ...referenceValues({ id: "appendix" }, allFields)]
+        : sectionId === "admission"
+          ? referenceValues({ id: "unt" }, allFields)
+          : sectionId === "social"
+            ? referenceValues({ id: "birth" }, allFields)
+            : [
+                row("ФИО абитуриента", names.applicant, true),
+                row("ИИН", findValueByLabel(allFields, /(^|\s)иин(\s|$)/i)),
+                row("Дата рождения", findValueByLabel(allFields, /дата рождения/i)),
+                row("Номер документа", findValueByLabel(allFields, /номер документа/i))
+              ];
+    return [row("Тип файла", "Определите документ визуально", true), ...fallbackRows];
   }
 
   function findDocumentViewer() {
@@ -1821,10 +1890,14 @@
     const filename = ((viewer.innerText || "").match(/[^\n]*\.(?:pdf|png|jpe?g|webp)\b/i) || ["Открытый документ"])[0].trim();
     const pages = viewerPages(viewer);
     const cacheKey = ocrCacheKey(filename, pages);
-    const cached = ocrCache.get(cacheKey);
+    const cachedCandidate = ocrCache.get(cacheKey);
+    const hintedType = documentType(lastAttachmentHint);
+    const detectedType = documentType(`${layerText || cachedCandidate?.text || ""} ${filename}`);
+    const type = hintedType.id !== "unknown" ? hintedType : detectedType;
+    const ocrEnabled = type.id !== "education";
+    const cached = ocrEnabled ? cachedCandidate : undefined;
     const text = layerText || cached?.text || "";
     const source = layerText ? "text" : cached?.text ? "ocr" : "";
-    const type = documentType(`${text} ${lastAttachmentHint} ${filename}`);
     const allFields = documentFields();
     const unt = text && type.id === "unt" ? untComparisons(text, allFields) : null;
     const rawComparisons = unt ? unt.comparisons : text ? comparisonsForDocument(type, text, allFields) : [];
@@ -1833,7 +1906,7 @@
     const reference = referenceValues(type, allFields);
     let ocrState = "";
     let ocrProgress = 0;
-    if (!layerText) {
+    if (ocrEnabled && !layerText) {
       if (cached?.error) ocrState = "error";
       else if (cached) { ocrState = "done"; ocrProgress = 100; }
       else if (ocrJob?.key === cacheKey) { ocrState = ocrJob.state; ocrProgress = ocrJob.progress; }
@@ -1870,7 +1943,8 @@
       ocrPageIndex: ocrJob?.key === cacheKey ? ocrJob.pageIndex : 0,
       ocrPageCount: pages.length || cached?.pageCount || 0,
       ocrConfidence: cached?.confidence ?? null,
-      ocrError: cached?.error || ""
+      ocrError: cached?.error || "",
+      ocrEnabled
     };
     if (unt && (source !== "ocr" || !Number.isFinite(cached?.confidence) || cached.confidence >= 55)) {
       const before = state.warnings.length;
@@ -1879,7 +1953,7 @@
       if (state.warnings.length !== before) scheduleSave();
     }
     render();
-    if (!layerText && !cached && pages.length && ocrState === "initializing" && !ocrJob) {
+    if (ocrEnabled && !layerText && !cached && pages.length && ocrState === "initializing" && !ocrJob) {
       const token = ocrGeneration;
       void runDocumentOcr(cacheKey, pages, token);
     }
@@ -1902,7 +1976,7 @@
       grades = `<div class="mdh-readable-grades"><b>Оценок в читаемом тексте: ${documentReview.grades.total}</b><span>5 — ${documentReview.grades.counts[5]}, 4 — ${documentReview.grades.counts[4]}, 3 — ${documentReview.grades.counts[3]}, 2 — ${documentReview.grades.counts[2]}</span><strong>Средний балл: ${value.toFixed(2)}</strong><small>${comparisonText} Проверьте количества по документу.</small></div>`;
     }
     let ocr = "";
-    if (!documentReview.source || documentReview.source === "ocr") {
+    if (documentReview.ocrEnabled && (!documentReview.source || documentReview.source === "ocr")) {
       if (["loading", "queued", "initializing", "recognizing"].includes(documentReview.ocrState)) {
         const progress = Math.max(0, Math.min(100, Math.round(documentReview.ocrProgress || 0)));
         ocr = `<div class="mdh-ocr-state"><div><b id="mdh-ocr-label">${esc(ocrStatusText(documentReview.ocrState, documentReview.ocrPageIndex, documentReview.ocrPageCount))}</b><span id="mdh-ocr-percent">${progress}%</span></div><div class="mdh-ocr-track"><i id="mdh-ocr-bar" style="width:${progress}%"></i></div><small>OCR работает локально в браузере. Обычно первая загрузка занимает дольше.</small></div>`;
@@ -1942,6 +2016,7 @@
     .mdh-head-copy span{display:block;margin-top:5px;color:#7d8ba0;font-size:10px;font-weight:650;letter-spacing:.15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .mdh-local{display:flex;align-items:center;gap:6px;padding:8px 11px;border-radius:99px;background:#eafaf4;color:#3b846f;font-size:11px;font-weight:800}
     .mdh-local:before{content:"";width:7px;height:7px;border-radius:50%;background:#16bb91}
+    .mdh-theme-toggle{display:grid;place-items:center;width:35px;height:35px;flex:none;padding:0;border:1px solid #e1e8f0;border-radius:12px;background:#f8fafc;color:#53677f;font-size:17px;line-height:1;cursor:pointer}
     .mdh-close{width:35px;height:35px;flex:none;border:0;border-radius:12px;background:#f1f5f9;color:#6e7e92;font-size:21px;line-height:1;cursor:pointer}
     .mdh-language-bar{margin:12px 18px 0;padding:4px;flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;border:1px solid #e4ebf3;border-radius:15px;background:#f8fafc}
     .mdh-language-bar button{height:36px;display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:11px;background:transparent;color:#68798e;font-size:10px;font-weight:850;cursor:pointer}
@@ -2049,6 +2124,18 @@
     .mdh-foot-primary:disabled{opacity:.45;cursor:default;box-shadow:none}
     .mdh-toast{position:absolute;left:18px;right:18px;bottom:82px;z-index:50;padding:11px 13px;border-radius:13px;background:#062653;color:#fff;font-size:10px;opacity:0;pointer-events:none;transform:translateY(8px);transition:.2s;box-shadow:0 12px 30px #06265333}
     .mdh-toast.show{opacity:1;transform:translateY(0)}
+    .mdh-panel.theme-dark{background:#111927;color:#edf4ff;border-color:#334257;box-shadow:0 30px 90px rgba(0,0,0,.55),0 4px 18px rgba(0,0,0,.28);color-scheme:dark}
+    .mdh-launch.theme-dark{border-color:#263449;background:#2388ee;box-shadow:0 15px 38px rgba(0,0,0,.42)}
+    .theme-dark .mdh-drag-bar{background:#53647a}.theme-dark .mdh-header{border-color:#28364a;background:#151f2e}.theme-dark .mdh-brand-symbol{border-radius:16px;background:#f5f9fd}.theme-dark .mdh-head-copy span{color:#94a5ba}.theme-dark .mdh-local{background:#18352e;color:#73d5b1}.theme-dark .mdh-theme-toggle{border-color:#38495f;background:#1e2b3d;color:#ffd166}.theme-dark .mdh-close{background:#202d3f;color:#aab9cb}
+    .theme-dark .mdh-language-bar{border-color:#2d3b4f;background:#182333}.theme-dark .mdh-language-bar button{color:#9bacbf}.theme-dark .mdh-language-bar button.active{background:#243247;color:#70b7ff;box-shadow:0 4px 12px rgba(0,0,0,.24)}
+    .theme-dark .mdh-nav,.theme-dark .mdh-tabs{background:#182333}.theme-dark .mdh-nav button,.theme-dark .mdh-tab{color:#93a4b9}.theme-dark .mdh-nav button.active,.theme-dark .mdh-tab.active{background:#243247;color:#70b7ff;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+    .theme-dark .mdh-body{background:#111927;scrollbar-color:#42536a transparent}.theme-dark .mdh-section-title span,.theme-dark .mdh-view-head p,.theme-dark .mdh-template small,.theme-dark .mdh-empty,.theme-dark .mdh-empty-state p{color:#95a6ba}.theme-dark .mdh-view-head h1,.theme-dark .mdh-section-title h2{color:#edf4ff}
+    .theme-dark .mdh-warning.danger{background:#342127;border-color:#5a3038}.theme-dark .mdh-warning.warning,.theme-dark .mdh-warning.note{background:#342d1e;border-color:#574822}.theme-dark .mdh-warning-label{color:#a9b6c7}.theme-dark .mdh-warning-text{color:#edf4ff}.theme-dark .mdh-warning-actions button:first-child{background:#e8f1fc;color:#152238}.theme-dark .mdh-warning-actions button:last-child{border-color:#425168;background:#253246;color:#b9c7d8}
+    .theme-dark .mdh-search,.theme-dark .mdh-grade-grid input,.theme-dark .mdh-picked textarea,.theme-dark .mdh-custom,.theme-dark .mdh-result{border-color:#34455b;background:#172232;color:#e6eef8}.theme-dark .mdh-search::placeholder,.theme-dark textarea::placeholder{color:#718299}.theme-dark .mdh-search:focus,.theme-dark .mdh-picked textarea:focus,.theme-dark .mdh-custom:focus{border-color:#4a9df3;box-shadow:0 0 0 3px rgba(74,157,243,.17)}
+    .theme-dark .mdh-template,.theme-dark .mdh-section,.theme-dark .mdh-picked{border-color:#2e3d51;background:#172130;color:#edf4ff}.theme-dark .mdh-template:after{background:#203d5c;color:#70b7ff}.theme-dark .mdh-template:hover{border-color:#4a8acb;box-shadow:0 9px 24px rgba(0,0,0,.24)}.theme-dark .mdh-template.selected{border-color:#3c96ef;background:#192d43;box-shadow:0 0 0 2px rgba(60,150,239,.12)}.theme-dark .mdh-picked b{color:#edf4ff}.theme-dark .mdh-picked>button{background:#3c252c;color:#ff9298}
+    .theme-dark .mdh-section>h3{background:#1d2a3c;color:#e7eff9}.theme-dark .mdh-grade-grid label span{color:#9cadc1}.theme-dark .mdh-grade-result,.theme-dark .mdh-composer{background:#1b3249;color:#9dccff}.theme-dark .mdh-grade-values>div{background:#213c56}.theme-dark .mdh-grade-result.match{background:#18352e;color:#73d5b1}.theme-dark .mdh-grade-result.mismatch{background:#3a242a;color:#ff9aa0}.theme-dark .mdh-grade-result button{background:#27364a;color:#ff9aa0}.theme-dark .mdh-composer-head span{color:#91a5bc}.theme-dark .mdh-result{background:#141f2e;color:#b8c6d8}.theme-dark .mdh-empty-state{border-color:#405067;background:#151f2e}
+    .theme-dark .mdh-reference-section{border-color:#355779!important;background:#172130!important}.theme-dark .mdh-reference-head{background:#1d344c!important}.theme-dark .mdh-reference-head h3{color:#edf4ff!important}.theme-dark .mdh-reference-head small{color:#9fb2c9!important}.theme-dark .mdh-reference-toggle{background:#263b53!important;color:#78baff!important}.theme-dark .mdh-reference-value{border-color:#34465c!important;background:#1a2738!important}.theme-dark .mdh-reference-value small{color:#91a4ba!important}.theme-dark .mdh-reference-value strong{color:#edf4ff!important}.theme-dark .mdh-reference-value.empty strong{color:#ff9ca2!important}.theme-dark .mdh-reference-note{background:#342d1e!important;color:#f2d17e!important}.theme-dark .mdh-readable{border-color:#34445a!important}.theme-dark .mdh-doc-row{border-color:#2f3e52}.theme-dark .mdh-doc-row b{color:#e5edf8}.theme-dark .mdh-readable-grades{background:#1c334b!important;color:#9dccff!important}.theme-dark .mdh-readable-grades small{color:#9badc2}.theme-dark .mdh-ocr-state{background:#1b3249;color:#9dccff}.theme-dark .mdh-ocr-track{background:#2b4560}.theme-dark .mdh-ocr-state small{color:#95a9c0}.theme-dark .mdh-ocr-error{background:#3a242a;color:#ff9aa0}.theme-dark .mdh-ocr-error button{background:#263448;color:#ff9aa0}.theme-dark .mdh-ocr-done{background:#18352e;color:#73d5b1}.theme-dark .mdh-ocr-text{border-color:#34465c;background:#151f2e}.theme-dark .mdh-ocr-text pre{border-color:#34465c;color:#bdcada}
+    .theme-dark .mdh-foot{border-color:#29384b;background:rgba(21,31,46,.95)}.theme-dark .mdh-foot-check{background:#18352e;color:#73d5b1}.theme-dark .mdh-foot-copy span{color:#91a2b7}.theme-dark .mdh-foot-secondary{border-color:#394a60;background:#1d2a3b;color:#bac8d9}.theme-dark .mdh-toast{background:#e7f0fb;color:#152238;box-shadow:0 12px 32px rgba(0,0,0,.35)}
     @media(max-width:560px){.mdh-panel{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 16px);border-radius:23px}.mdh-local{display:none}.mdh-result-hero{padding-right:125px}.mdh-mascot-orbit{right:0;width:130px;height:150px}.mdh-mascot-orbit img{width:128px}.mdh-nav{margin-left:12px;margin-right:12px}.mdh-body{padding-left:12px;padding-right:12px}.mdh-foot{padding-left:12px;padding-right:12px}}
   `;
 
@@ -2146,7 +2233,7 @@
     const selectionStart = oldSearch?.selectionStart ?? 0;
     const selectionEnd = oldSearch?.selectionEnd ?? 0;
     renderedView = activeView;
-    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "series-uppercase": "Документ об образовании", "kato-not-city": "Населённый пункт", "fio-case": "ФИО абитуриента", "missing-patronymic": "ФИО абитуриента", "no-parent": "Данные родителя", "parent-fio-case": "ФИО родителя", "parent-name-missing": "ФИО родителя", "wrong-admission-type": "Тип поступления", "wrong-average": "Средний балл", "parent-work": "Данные родителя", "parent-unemployed": "Данные родителя", "unt-invalid-certificate": "Сертификат ЕНТ", "no-id": "Документы", "no-certificate": "Документ об образовании", "no-appendix": "Документ об образовании", "relationship": "Документы родителя", "no-unt": "ЕНТ", "no-language-cert": "Сертификат" };
+    const warningLabels = { "address-incomplete": "Адрес проживания", "series-number": "Документ об образовании", "series-uppercase": "Документ об образовании", "kato-not-city": "Населённый пункт", "fio-case": "ФИО абитуриента", "missing-patronymic": "ФИО абитуриента", "no-parent": "Данные родителя", "parent-fio-case": "ФИО родителя", "parent-name-missing": "ФИО родителя", "wrong-admission-type": "Тип поступления", "wrong-average": "Средний балл", "parent-work": "Данные родителя", "parent-unemployed": "Данные родителя", "unt-invalid-certificate": "Сертификат ЕНТ", "unt-gop-subjects": "Предметы и ГОП", "unt-total-score": "Общий балл ЕНТ", "unt-funding-unavailable": "Форма оплаты", "no-id": "Документы", "no-certificate": "Документ об образовании", "no-appendix": "Документ об образовании", "relationship": "Документы родителя", "no-unt": "ЕНТ", "no-language-cert": "Сертификат" };
     const warnings = state.warnings.map((item, index) => `<article class="mdh-warning ${item.level}"><div class="mdh-warning-head"><span class="mdh-warning-icon">${item.level === "danger" ? "!" : "?"}</span><span class="mdh-warning-label">${esc(item.label || warningLabels[item.templateId] || "Формальная проверка")}</span></div><span class="mdh-warning-text">${esc(item.text)}</span><div class="mdh-warning-actions"><button type="button" data-warning-add="${index}">Добавить</button><button type="button" data-warning-ignore="${index}">Игнорировать</button></div></article>`).join("");
     const selected = state.selected.length
       ? state.selected.map((item, index) => `<div class="mdh-picked"><div><b>${index + 1}. ${esc(item.title)}</b><textarea data-picked="${esc(item.id)}">${esc(item.text)}</textarea></div><button type="button" title="Удалить" data-remove="${esc(item.id)}">×</button></div>`).join("")
@@ -2173,7 +2260,7 @@
       { id: "en", label: "Eng", title: "Английский язык" }
     ].map(language => `<button type="button" class="${state.commentLanguage === language.id ? "active" : ""}" data-comment-language="${language.id}" title="${language.title}" aria-pressed="${state.commentLanguage === language.id}"><i class="mdh-flag mdh-flag-${language.id}" aria-hidden="true"></i><span>${language.label}</span></button>`).join("");
 
-    shadow.innerHTML = `<style>${PANEL_CSS}</style><button type="button" class="mdh-launch ${state.collapsed ? "" : "hidden"}" id="mdh-launch" style="${positionStyle("launch")}" title="Открыть или перетащить помощник"><img src="${ASSETS.peek}" alt="MyDU Helper"></button><aside class="mdh-panel ${state.collapsed ? "hidden" : ""}" style="${positionStyle("panel")}"><div class="mdh-drag-bar"></div><header class="mdh-header" title="Перетащите, чтобы переместить"><div class="mdh-brand-symbol"><img src="${ASSETS.brand}" alt="Astana IT University"></div><div class="mdh-head-copy"><b>MyDU Helper</b><span>Помощник приёмной комиссии</span></div><div class="mdh-local">локально</div><button type="button" class="mdh-close" id="mdh-close" title="Свернуть">×</button></header><div class="mdh-language-bar" aria-label="Язык текста комментариев">${languageBar}</div><nav class="mdh-nav"><button type="button" class="${activeView === "checks" ? "active" : ""}" data-view="checks"><span class="mdh-nav-icon">✓</span>Проверка${warningCount ? `<span class="mdh-count">${warningCount}</span>` : ""}</button><button type="button" class="${activeView === "templates" ? "active" : ""}" data-view="templates"><span class="mdh-nav-icon">▤</span>Шаблоны</button><button type="button" class="${activeView === "comment" ? "active" : ""}" data-view="comment"><span class="mdh-nav-icon">✎</span>Комментарий${selectedCount ? `<span class="mdh-count">${selectedCount}</span>` : ""}</button></nav><main class="mdh-body">${viewContent}</main>${footer}<div class="mdh-toast" id="mdh-toast"></div></aside>`;
+    shadow.innerHTML = `<style>${PANEL_CSS}</style><button type="button" class="mdh-launch ${theme === "dark" ? "theme-dark" : ""} ${state.collapsed ? "" : "hidden"}" id="mdh-launch" style="${positionStyle("launch")}" title="Открыть или перетащить помощник"><img src="${ASSETS.peek}" alt="MyDU Helper"></button><aside class="mdh-panel ${theme === "dark" ? "theme-dark" : ""} ${state.collapsed ? "hidden" : ""}" style="${positionStyle("panel")}"><div class="mdh-drag-bar"></div><header class="mdh-header" title="Перетащите, чтобы переместить"><div class="mdh-brand-symbol"><img src="${ASSETS.brand}" alt="Astana IT University"></div><div class="mdh-head-copy"><b>MyDU Helper</b><span>Помощник приёмной комиссии</span></div><div class="mdh-local">локально</div><button type="button" class="mdh-theme-toggle" id="mdh-theme-toggle" title="${theme === "dark" ? "Включить светлую тему" : "Включить тёмную тему"}" aria-label="${theme === "dark" ? "Включить светлую тему" : "Включить тёмную тему"}">${theme === "dark" ? "☀" : "☾"}</button><button type="button" class="mdh-close" id="mdh-close" title="Свернуть">×</button></header><div class="mdh-language-bar" aria-label="Язык текста комментариев">${languageBar}</div><nav class="mdh-nav"><button type="button" class="${activeView === "checks" ? "active" : ""}" data-view="checks"><span class="mdh-nav-icon">✓</span>Проверка${warningCount ? `<span class="mdh-count">${warningCount}</span>` : ""}</button><button type="button" class="${activeView === "templates" ? "active" : ""}" data-view="templates"><span class="mdh-nav-icon">▤</span>Шаблоны</button><button type="button" class="${activeView === "comment" ? "active" : ""}" data-view="comment"><span class="mdh-nav-icon">✎</span>Комментарий${selectedCount ? `<span class="mdh-count">${selectedCount}</span>` : ""}</button></nav><main class="mdh-body">${viewContent}</main>${footer}<div class="mdh-toast" id="mdh-toast"></div></aside>`;
     placeElement(shadow.querySelector(".mdh-panel"), "panel");
     placeElement(shadow.querySelector(".mdh-launch"), "launch");
     bindEvents();
@@ -2211,6 +2298,11 @@
       scanDocumentViewer();
     };
     launch.onclick = () => { state.collapsed = false; render(); scheduleSave(); };
+    shadow.querySelector("#mdh-theme-toggle").onclick = () => {
+      theme = theme === "dark" ? "light" : "dark";
+      storageSet({ [THEME_KEY]: theme });
+      render();
+    };
     shadow.querySelector("#mdh-close").onclick = () => { state.collapsed = true; render(); scheduleSave(); };
     shadow.querySelectorAll("[data-comment-language]").forEach(node => node.onclick = () => setCommentLanguage(node.dataset.commentLanguage));
     shadow.querySelectorAll("[data-view]").forEach(node => node.onclick = () => { state.activeView = node.dataset.view; render(); scheduleSave(); });
@@ -2256,7 +2348,8 @@
     const id = applicantId();
     if (!id || root) return;
     lastApplicantId = id; draftKey = `mydu-helper-draft-${id}`;
-    const [saved, savedPosition] = await Promise.all([storageGet(draftKey), storageGet(POSITION_KEY)]);
+    const [saved, savedPosition, savedTheme] = await Promise.all([storageGet(draftKey), storageGet(POSITION_KEY), storageGet(THEME_KEY)]);
+    theme = savedTheme === "dark" ? "dark" : "light";
     uiPosition = {
       panel: validPosition(savedPosition?.panel),
       launch: validPosition(savedPosition?.launch)
@@ -2273,19 +2366,48 @@
     setTimeout(() => cacheCurrentSectionFields(lastMyduSection), 120);
   }
 
+  function attachmentHintsFromText(value) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    const hints = [];
+    if (/сумма баллов ент|общий балл ент|обязательные предметы/i.test(text)) hints.push("Сертификат ЕНТ");
+    if (/test report form|номер сертификата|название международн.*сертификат|владени.*иностранн.*язык|ielts/i.test(text)) hints.push("IELTS Test Report Form");
+    if (/номер документа|документ,? удостоверяющ.*личност/i.test(text)) hints.push("Удостоверение личности");
+    if (/приложени[ея].*(аттестат|диплом)|(аттестат|диплом).*приложени[ея]/i.test(text)) hints.push("Приложение к аттестату/диплому");
+    if (/скан-копия\s+(?:аттестата|диплома)(?![^.]{0,80}приложени)|серия (аттестата|диплома)|номер (аттестата|диплома)/i.test(text)) hints.push("Аттестат/диплом");
+    if (/подтверждающ.*родств|свидетельств[оа] о рождении/i.test(text)) hints.push("Свидетельство о рождении");
+    return [...new Set(hints)];
+  }
+
+  function nearbyAttachmentDocumentHint(target) {
+    const targetRect = target.getBoundingClientRect();
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    const candidates = [...document.querySelectorAll("label, legend, strong, b, span, p, [class*='label'], [class*='Label']")]
+      .map(node => {
+        const text = (node.innerText || node.textContent || "").replace(/\s+/g, " ").trim();
+        const hints = text.length <= 220 ? attachmentHintsFromText(text) : [];
+        const rect = node.getBoundingClientRect();
+        if (hints.length !== 1 || rect.width <= 0 || rect.height <= 0) return null;
+        const verticalGap = targetRect.top - rect.bottom;
+        if (verticalGap < -45 || verticalGap > 180) return null;
+        const centerX = rect.left + rect.width / 2;
+        const belowPenalty = rect.top > targetRect.top ? 500 : 0;
+        return { hint: hints[0], score: Math.abs(centerX - targetCenterX) * 1.5 + Math.abs(verticalGap) + belowPenalty };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.score - b.score);
+    return candidates[0]?.hint || "";
+  }
+
   function attachmentDocumentHint(target) {
     let current = target;
     for (let depth = 0; current && current !== document.body && depth < 9; depth += 1, current = current.parentElement) {
       const text = (current.innerText || current.textContent || "").replace(/\s+/g, " ").trim();
-      if (/сумма баллов ент|общий балл ент|обязательные предметы/i.test(text)) return "Сертификат ЕНТ";
-      if (/test report form|номер сертификата|название международн.*сертификат|владени.*иностранн.*язык|ielts/i.test(text)) return "IELTS Test Report Form";
-      if (/номер документа|документ,? удостоверяющ.*личност/i.test(text)) return "Удостоверение личности";
-      if (/приложени[ея].*(аттестат|диплом)|(аттестат|диплом).*приложени[ея]/i.test(text)) return "Приложение к аттестату/диплому";
-      if (/серия (аттестата|диплома)|номер (аттестата|диплома)/i.test(text)) return "Аттестат/диплом";
-      if (/подтверждающ.*родств|свидетельств[оа] о рождении/i.test(text)) return "Свидетельство о рождении";
+      const hints = attachmentHintsFromText(text);
+      if (hints.length === 1) return hints[0];
+      if (hints.length > 1) break;
       if (text.length > 4200) break;
     }
-    return "";
+    return nearbyAttachmentDocumentHint(target);
   }
 
   function captureAttachmentHint(event) {
@@ -2293,6 +2415,7 @@
     if (!target) return;
     const text = (target.innerText || target.textContent || "").trim();
     if (!/\.(?:pdf|png|jpe?g|webp)\b|скан-копия|документ,?\s+подтверждающ|сертификат/i.test(text)) return;
+    cacheCurrentSectionFields();
     ocrGeneration += 1;
     ocrPageStability.clear();
     lastAttachmentHint = `${text} ${attachmentDocumentHint(target)}`.trim();
@@ -2306,6 +2429,13 @@
 
   document.addEventListener("click", captureAttachmentHint, true);
   document.addEventListener("click", captureMyduSection, true);
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes[THEME_KEY]) return;
+    const nextTheme = changes[THEME_KEY].newValue === "dark" ? "dark" : "light";
+    if (nextTheme === theme) return;
+    theme = nextTheme;
+    if (shadow) render();
+  });
 
   setInterval(async () => {
     const id = applicantId();
