@@ -90,6 +90,87 @@
     return Number.isFinite(number) ? number : null;
   }
 
+  function fieldValue(fields, labelPattern) {
+    return (fields || []).find(field => labelPattern.test(field.label))?.value || "";
+  }
+
+  function numericFieldValue(fields, labelPattern) {
+    const value = String(fieldValue(fields, labelPattern)).trim().replace(",", ".");
+    if (!value) return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function degreeWarnings(fields) {
+    const degree = normalize(fieldValue(fields, /академическ.*степен/i));
+    if (/магистратур/.test(degree) && /профильн.*направлен/.test(degree)) {
+      return [{
+        templateId: "master-profile-direction",
+        key: "master-profile-direction",
+        level: "danger",
+        label: "Академическая степень",
+        text: "Выбрана профильная магистратура, которая не реализуется в AITU",
+        commentTexts: {
+          ru: "В AITU реализуется только магистратура по научно-педагогическому направлению. Пожалуйста, измените академическую степень на «Магистратура (научно-педагогическое направление)».",
+          kz: "AITU-да тек ғылыми-педагогикалық бағыттағы магистратура жүзеге асырылады. Академиялық дәреже ретінде «Магистратура (научно-педагогическое направление)» таңдаңыз.",
+          en: "AITU offers only the scientific and pedagogical master's track. Please change the academic degree to “Магистратура (научно-педагогическое направление)”."
+        }
+      }];
+    }
+    if (/докторантур.*по направлен/.test(degree)) {
+      return [{
+        templateId: "doctorate-directions",
+        key: "doctorate-directions",
+        level: "danger",
+        label: "Академическая степень",
+        text: "Выбрана докторантура по направлениям, которая не реализуется в AITU",
+        commentTexts: {
+          ru: "В AITU реализуется только докторантура PhD. Пожалуйста, измените академическую степень на «Докторантура PhD».",
+          kz: "AITU-да тек PhD докторантурасы жүзеге асырылады. Академиялық дәреже ретінде «Докторантура PhD» таңдаңыз.",
+          en: "AITU offers only PhD doctoral studies. Please change the academic degree to “Докторантура PhD”."
+        }
+      }];
+    }
+    return [];
+  }
+
+  function mastersScoreWarnings(fields) {
+    const degree = normalize(fieldValue(fields, /академическ.*степен/i));
+    if (!/магистратур/.test(degree)) return [];
+    const englishScore = numericFieldValue(fields, /английск.*язык/i);
+    const total = numericFieldValue(fields, /(?:сумма|общий).*балл.*кт|балл.*кт.*(?:сумма|общий)/i);
+    const warnings = [];
+    if (englishScore !== null && englishScore < 25) {
+      warnings.push({
+        templateId: "master-english-score",
+        key: "master-english-score:25",
+        level: "danger",
+        label: "Английский язык",
+        text: `Балл по английскому языку — ${englishScore}; минимальный порог — 25`,
+        commentTexts: {
+          ru: "По английскому языку необходимо набрать не менее 25 баллов. Если баллы по английскому языку были конвертированы на основании результата IELTS, пожалуйста, прикрепите сертификат IELTS.",
+          kz: "Ағылшын тілі бойынша кемінде 25 балл жинау қажет. Егер ағылшын тілі бойынша балл IELTS нәтижесі негізінде конвертацияланған болса, IELTS сертификатын тіркеңіз.",
+          en: "A minimum of 25 points in English is required. If your English score was converted from an IELTS result, please attach your IELTS certificate."
+        }
+      });
+    }
+    if (total !== null && total < 75) {
+      warnings.push({
+        templateId: "master-total-score",
+        key: "master-total-score:75",
+        level: "danger",
+        label: "Общий балл КТ",
+        text: `Общий балл КТ — ${total}; минимальный порог — 75`,
+        commentTexts: {
+          ru: "Для поступления в магистратуру необходимо набрать по КТ не менее 75 баллов.",
+          kz: "Магистратураға түсу үшін КТ бойынша кемінде 75 балл жинау қажет.",
+          en: "A total score of at least 75 points on the Comprehensive Test is required for master's admission."
+        }
+      });
+    }
+    return warnings;
+  }
+
   function subjectSet(fields) {
     const ids = [];
     for (const field of fields || []) {
@@ -200,16 +281,20 @@
   }
 
   function check(fields, pageText = "") {
+    const warnings = [
+      ...degreeWarnings(fields),
+      ...mastersScoreWarnings(fields)
+    ];
     const type = examType(pageText, fields);
-    if (!type) return [];
+    if (!type) return warnings;
     const selectedCode = groupCode(fields);
     const subjects = subjectSet(fields);
     const matchingCodes = matchingGroups(type, subjects);
     const thresholdCode = matchingCodes.includes(selectedCode) || matchingCodes.length !== 1 ? selectedCode : matchingCodes[0];
-    const warnings = [
+    warnings.push(
       subjectWarning(type, selectedCode, subjects),
       scoreWarning(type, thresholdCode, fundingType(fields), totalScore(fields))
-    ];
+    );
     return warnings.filter(Boolean);
   }
 

@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "node tests/admission-rules.test.js"
+    "test": "node tests/admission-rules.test.js && node tests/date-range-filter.test.js"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "1.0.0",

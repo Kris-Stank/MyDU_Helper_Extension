@@ -65,4 +65,33 @@ assert.equal(check(application({
   subjects: [["Математика", 30], ["Информатика", 30], ["История Казахстана", 5], ["Грамотность чтения", 3], ["Математическая грамотность", 2]]
 }), "Профильные предметы Обязательные предметы").length, 0);
 
-console.log("Admission rules: 6 scenarios passed");
+const profileMasters = check([
+  field("Академическая степень", "Магистратура (профильное направление)"),
+  field("Английский язык", "49"),
+  field("Сумма баллов КТ", "128")
+]);
+assert.deepEqual(profileMasters.map(item => item.templateId), ["master-profile-direction"]);
+assert.match(profileMasters[0].commentTexts.ru, /научно-педагогическое направление/);
+
+const directionsDoctorate = check([
+  field("Академическая степень", "Докторантура по направлениям"),
+  field("Группа образовательных программ", "D094 - Информационные технологии")
+]);
+assert.deepEqual(directionsDoctorate.map(item => item.templateId), ["doctorate-directions"]);
+assert.match(directionsDoctorate[0].commentTexts.ru, /Докторантура PhD/);
+
+const lowMastersScores = check([
+  field("Академическая степень", "Магистратура (научно-педагогическое направление)"),
+  field("Английский язык", "24"),
+  field("Сумма баллов КТ", "74")
+]);
+assert.deepEqual(lowMastersScores.map(item => item.templateId), ["master-english-score", "master-total-score"]);
+assert.match(lowMastersScores[0].commentTexts.ru, /IELTS/);
+
+assert.equal(check([
+  field("Академическая степень", "Магистратура (научно-педагогическое направление)"),
+  field("Английский язык", "25"),
+  field("Сумма баллов КТ", "75")
+]).length, 0);
+
+console.log("Admission rules: 10 scenarios passed");

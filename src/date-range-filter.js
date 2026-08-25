@@ -8,6 +8,11 @@
   const RETURN_REFRESH_DELAY = 250;
   const DATE_FILTER_KEYS = ["createdDate", "createdDateBefore"];
   const PAGINATION_KEYS = ["page", "size", "sort", "desc"];
+  const DEGREE_OPTIONS = [
+    { value: "1", label: "Бакалавриат" },
+    { value: "2", label: "Магистратура (научно-педагогическое направление)" },
+    { value: "6", label: "Докторантура PhD" }
+  ];
   const STATUS_COLORS = {
     0: "gray", 1: "blue", 2: "orange", 3: "orange", 4: "green", 5: "orange",
     6: "green", 7: "green", 8: "green", 9: "orange", 10: "blue", 11: "green",
@@ -61,6 +66,7 @@
     totalPages: 0,
     statusOptions: [...FALLBACK_STATUS_OPTIONS],
     selectedStatusIds: new Set(),
+    selectedDegreeId: "",
     statusMenuOpen: false,
     statusesLoading: false,
     statusesLoaded: false
@@ -77,7 +83,7 @@
     .range-tools{display:flex;align-items:center;gap:8px;flex:none}
     .range-badge{flex:none;padding:6px 9px;border-radius:999px;background:#edf6ff;color:#0877ef;font-size:10px;font-weight:800;letter-spacing:.3px}
     .theme-toggle{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #d8e2ec;border-radius:11px;background:#fff;color:#52667e;font-size:16px;line-height:1;box-shadow:0 4px 12px rgba(18,44,78,.07)}
-    .range-form{display:grid;grid-template-columns:minmax(145px,190px) minmax(145px,190px) minmax(210px,1fr) auto auto;align-items:end;gap:12px;padding:0 20px 18px}
+    .range-form{display:grid;grid-template-columns:minmax(145px,190px) minmax(145px,190px) minmax(210px,1fr) minmax(220px,320px) auto auto;align-items:end;gap:12px;padding:0 20px 18px}
     label span{display:block;margin:0 0 6px;color:#4d5f75;font-size:11px;font-weight:750}
     input,select,button{font:inherit}
     input[type=date],select{width:100%;height:42px;border:1px solid #cfd9e5;border-radius:10px;background:#fff;color:#142033;outline:none}
@@ -121,7 +127,7 @@
     .theme-dark .status{border-color:#2a384a;background:#172130;color:#9eafc3}.theme-dark .status.loading,.theme-dark .status.refreshing{color:#78baff}.theme-dark .status.error{background:#352128;color:#ff999f}.theme-dark .status.success{background:#183029;color:#6dd8ae}.theme-dark .spinner{border-color:#33577b;border-top-color:#69b1ff}
     .theme-dark .results,.theme-dark .table-wrap{border-color:#2a384a}.theme-dark .results-head small,.theme-dark .page-size,.theme-dark .pager span{color:#91a2b8}.theme-dark th{background:#192434;color:#aebdd0}.theme-dark td{border-color:#283648;color:#d9e4f2}.theme-dark td a{color:#67b2ff}.theme-dark .empty{color:#91a2b8}.theme-dark .pager{background:#131c2a}
     @media(max-width:1100px){.range-form{grid-template-columns:1fr 1fr 1.35fr}.range-form>button{width:100%}.range-head{padding-right:16px;padding-left:16px}.range-form,.status,.results-head,.pager{padding-right:16px;padding-left:16px}}
-    @media(max-width:760px){.range-form{grid-template-columns:1fr 1fr}.status-field{grid-column:1/-1}}
+    @media(max-width:760px){.range-form{grid-template-columns:1fr 1fr}.status-field,.degree-field{grid-column:1/-1}}
     @media(max-width:560px){.range-form{grid-template-columns:1fr}.range-badge{display:none}.results-head{align-items:flex-start;flex-direction:column}}
   `;
 
@@ -191,6 +197,21 @@
     return `Выбрано статусов: ${selected.length}`;
   }
 
+  function selectedDegreeLabel() {
+    return DEGREE_OPTIONS.find(option => option.value === state.selectedDegreeId)?.label || "Все степени";
+  }
+
+  function searchParamValue(params, key) {
+    const raw = params.get(key);
+    if (!raw) return "";
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed == null ? "" : String(parsed);
+    } catch {
+      return raw;
+    }
+  }
+
   async function loadStatusOptions() {
     if (state.statusesLoading || state.statusesLoaded) return;
     state.statusesLoading = true;
@@ -218,7 +239,7 @@
 
   function baseFilters() {
     const params = new URLSearchParams(location.search);
-    [...DATE_FILTER_KEYS, ...PAGINATION_KEYS, "lang", "statusId"].forEach(key => params.delete(key));
+    [...DATE_FILTER_KEYS, ...PAGINATION_KEYS, "lang", "statusId", "academicDegreeId"].forEach(key => params.delete(key));
     if (!params.has("appTypeId")) params.set("appTypeId", "1");
     if (!params.has("submissionYear")) params.set("submissionYear", String(new Date().getFullYear()));
     return params;
@@ -233,6 +254,7 @@
     const params = baseFilters();
     params.set("createdDateBefore", endExclusive);
     if (statusId != null) params.set("statusId", String(statusId));
+    if (state.selectedDegreeId) params.set("academicDegreeId", state.selectedDegreeId);
     params.set("page", String(page));
     params.set("size", String(API_PAGE_SIZE));
     params.set("sort", "createdAt");
@@ -262,7 +284,9 @@
   function applicationInRange(application) {
     const key = localDateKey(application?.createdAt);
     const statusMatches = !state.selectedStatusIds.size || state.selectedStatusIds.has(String(application?.statusId ?? ""));
-    return statusMatches && key >= state.from && key <= state.to;
+    const applicationDegreeId = application?.academicDegreeId ?? application?.degreeId;
+    const degreeMatches = !state.selectedDegreeId || applicationDegreeId == null || String(applicationDegreeId) === state.selectedDegreeId;
+    return statusMatches && degreeMatches && key >= state.from && key <= state.to;
   }
 
   function uniqueApplications(applications) {
@@ -336,7 +360,7 @@
     const rows = resultRows();
     return `<section class="results">
       <div class="results-head">
-        <div><b>Найдено ${total} ${plural(total, "заявление", "заявления", "заявлений")}</b><small>С ${escapeHtml(state.from)} по ${escapeHtml(state.to)} включительно · ${escapeHtml(selectedStatusesLabel())}</small></div>
+        <div><b>Найдено ${total} ${plural(total, "заявление", "заявления", "заявлений")}</b><small>С ${escapeHtml(state.from)} по ${escapeHtml(state.to)} включительно · ${escapeHtml(selectedDegreeLabel())} · ${escapeHtml(selectedStatusesLabel())}</small></div>
         <label class="page-size"><span>Показывать</span><select id="range-page-size">
           ${[25, 50, 100].map(size => `<option value="${size}" ${state.pageSize === size ? "selected" : ""}>${size}</option>`).join("")}
         </select></label>
@@ -382,6 +406,10 @@
         <label><span>Дата с</span><input id="range-from" type="date" value="${escapeHtml(state.from)}" max="${escapeHtml(state.to)}" ${loading ? "disabled" : ""}></label>
         <label><span>Дата по</span><input id="range-to" type="date" value="${escapeHtml(state.to)}" min="${escapeHtml(state.from)}" ${loading ? "disabled" : ""}></label>
         ${statusSelectHtml(loading)}
+        <label class="degree-field"><span>Академическая степень</span><select id="range-degree" ${loading ? "disabled" : ""}>
+          <option value="">Все степени</option>
+          ${DEGREE_OPTIONS.map(option => `<option value="${escapeHtml(option.value)}" ${state.selectedDegreeId === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select></label>
         ${loading ? `<button type="button" class="secondary" id="range-cancel">Отменить</button>` : `<button type="submit" class="primary">Применить</button>`}
         <button type="button" class="secondary" id="range-reset" ${loading ? "disabled" : ""}>Сбросить</button>
       </form>
@@ -429,6 +457,11 @@
         invalidateResultsForStatusChange();
       };
     });
+    const degree = shadow.querySelector("#range-degree");
+    if (degree) degree.onchange = event => {
+      state.selectedDegreeId = event.currentTarget.value;
+      invalidateResultsForFilterChange("Выбор академической степени изменён.");
+    };
     const cancel = shadow.querySelector("#range-cancel");
     if (cancel) cancel.onclick = () => abortController?.abort();
     const previous = shadow.querySelector("#range-prev");
@@ -443,15 +476,19 @@
     if (pageSize) pageSize.onchange = event => { state.pageSize = Number(event.currentTarget.value) || 25; state.page = 0; render(); };
   }
 
-  function invalidateResultsForStatusChange() {
+  function invalidateResultsForFilterChange(message) {
     if (state.status === "success") {
       restoreNativeResults();
       state.status = "idle";
       state.results = [];
       state.page = 0;
-      state.message = "Выбор статусов изменён. Нажмите «Применить» для обновления списка.";
+      state.message = `${message} Нажмите «Применить» для обновления списка.`;
     }
     render();
+  }
+
+  function invalidateResultsForStatusChange() {
+    invalidateResultsForFilterChange("Выбор статусов изменён.");
   }
 
   async function applyRange(options = {}) {
@@ -549,6 +586,7 @@
     state.scannedPages = 0;
     state.totalPages = 0;
     state.selectedStatusIds.clear();
+    state.selectedDegreeId = "";
     state.statusMenuOpen = false;
     refreshAfterReturn = false;
     lastFilterSignature = currentFilterSignature();
@@ -577,8 +615,11 @@
     table.parentElement?.insertBefore(host, table);
     const selectedDate = new URLSearchParams(location.search).get("createdDate");
     if (selectedDate && !state.from && !state.to) state.from = state.to = selectedDate;
-    const selectedStatus = new URLSearchParams(location.search).get("statusId");
+    const searchParams = new URLSearchParams(location.search);
+    const selectedStatus = searchParamValue(searchParams, "statusId");
     if (selectedStatus && !state.selectedStatusIds.size) state.selectedStatusIds.add(selectedStatus);
+    const selectedDegree = searchParamValue(searchParams, "academicDegreeId");
+    if (DEGREE_OPTIONS.some(option => option.value === selectedDegree)) state.selectedDegreeId = selectedDegree;
     lastFilterSignature = currentFilterSignature();
     render();
     loadStatusOptions();
